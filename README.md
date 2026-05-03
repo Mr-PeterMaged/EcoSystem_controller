@@ -4,7 +4,7 @@ Smart Home Control System is a Flutter mobile application for monitoring and con
 
 The project is designed for smart home and IoT use cases where users need a simple mobile dashboard to interact with sensors and actuators such as gas sensors, temperature sensors, PIR motion sensors, LEDs, buzzers, and automatic lighting.
 
-## 📱 Overview
+## Overview
 
 This application allows users to sign in, view the current system status, control connected home components, monitor environmental readings, and review important alerts from the smart home system. It is built with Flutter and can be connected to a backend service or IoT controller such as an ESP32 through HTTP endpoints.
 
@@ -39,31 +39,31 @@ This application allows users to sign in, view the current system status, contro
 
 ## Screenshots
 
-Add app screenshots to a `screenshots/` folder and update the paths below.
+The following screenshots are stored in the `mobile_app/` folder.
 
 ### Login
 
-![Login Screen](screenshots/login.png)
+![Login Screen](mobile_app/login_page.png)
 
 ### Dashboard
 
-![Dashboard Screen](screenshots/dashboard.png)
+![Dashboard Screen](mobile_app/welcome_admin.png)
 
 ### Control Panel
 
-![Control Screen](screenshots/control.png)
+![Control Screen](mobile_app/full_control.png)
 
 ### Statistics
 
-![Statistics Screen](screenshots/stats.png)
+![Statistics Screen](mobile_app/system_stats.png)
 
 ### Notifications
 
-![Notifications Screen](screenshots/notifications.png)
+![Notifications Screen](mobile_app/norifications.png)
 
 ### Settings
 
-![Settings Screen](screenshots/settings.png)
+![Settings Screen](mobile_app/display.png)
 
 ## Tech Stack
 
@@ -131,6 +131,7 @@ POST /control
 lib/
 +-- main.dart                      # App entry point and root configuration
 +-- screens/                       # Main application screens
+|   +-- loading_screen.dart        # Splash/loading screen with app logo
 |   +-- login_screen.dart          # Authentication and controller IP input
 |   +-- home_screen.dart           # Dashboard and system overview
 |   +-- control_screen.dart        # Full smart home control panel

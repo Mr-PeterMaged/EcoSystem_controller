@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'screens/login_screen.dart';
+import 'screens/loading_screen.dart';
 import 'services/notification_service.dart';
 import 'theme_notifier.dart';
 import 'app_constants.dart';
@@ -36,7 +36,7 @@ class SmartHomeApp extends StatelessWidget {
           ),
           useMaterial3: true,
         ),
-        home: const LoginScreen(),
+        home: const LoadingScreen(),
       ),
     );
   }

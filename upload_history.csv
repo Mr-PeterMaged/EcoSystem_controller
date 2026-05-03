@@ -18,3 +18,16 @@
 20260503141621-90600a84,2026-05-03T14:16:21+03:00,2026-05-03,14:16:21,Egypt Daylight Time,+0300,main,origin,Update project files,false,18,1188,1312,lib/theme_notifier.dart,,added,A,3,0,false,upload.py
 20260503141621-90600a84,2026-05-03T14:16:21+03:00,2026-05-03,14:16:21,Egypt Daylight Time,+0300,main,origin,Update project files,false,18,1188,1312,lib/widgets/control_button.dart,,modified,M,35,16,false,upload.py
 20260503141621-90600a84,2026-05-03T14:16:21+03:00,2026-05-03,14:16:21,Egypt Daylight Time,+0300,main,origin,Update project files,false,18,1188,1312,lib/widgets/green_button.dart,,added,A,61,0,false,upload.py
+20260503185804-56c63e22,2026-05-03T18:58:04+03:00,2026-05-03,18:58:04,Egypt Daylight Time,+0300,main,origin,Update project files,false,13,91,32,Logo/dark_mode.png,,added,A,,,true,upload.py
+20260503185804-56c63e22,2026-05-03T18:58:04+03:00,2026-05-03,18:58:04,Egypt Daylight Time,+0300,main,origin,Update project files,false,13,91,32,Logo/light_mode.png,,added,A,,,true,upload.py
+20260503185804-56c63e22,2026-05-03T18:58:04+03:00,2026-05-03,18:58:04,Egypt Daylight Time,+0300,main,origin,Update project files,false,13,91,32,README.md,,modified,M,9,8,false,upload.py
+20260503185804-56c63e22,2026-05-03T18:58:04+03:00,2026-05-03,18:58:04,Egypt Daylight Time,+0300,main,origin,Update project files,false,13,91,32,lib/main.dart,,modified,M,2,2,false,upload.py
+20260503185804-56c63e22,2026-05-03T18:58:04+03:00,2026-05-03,18:58:04,Egypt Daylight Time,+0300,main,origin,Update project files,false,13,91,32,lib/screens/loading_screen.dart,,added,A,70,0,false,upload.py
+20260503185804-56c63e22,2026-05-03T18:58:04+03:00,2026-05-03,18:58:04,Egypt Daylight Time,+0300,main,origin,Update project files,false,13,91,32,mobile_app/display.png,,added,A,,,true,upload.py
+20260503185804-56c63e22,2026-05-03T18:58:04+03:00,2026-05-03,18:58:04,Egypt Daylight Time,+0300,main,origin,Update project files,false,13,91,32,mobile_app/full_control.png,,added,A,,,true,upload.py
+20260503185804-56c63e22,2026-05-03T18:58:04+03:00,2026-05-03,18:58:04,Egypt Daylight Time,+0300,main,origin,Update project files,false,13,91,32,mobile_app/login_page.png,,added,A,,,true,upload.py
+20260503185804-56c63e22,2026-05-03T18:58:04+03:00,2026-05-03,18:58:04,Egypt Daylight Time,+0300,main,origin,Update project files,false,13,91,32,mobile_app/norifications.png,,added,A,,,true,upload.py
+20260503185804-56c63e22,2026-05-03T18:58:04+03:00,2026-05-03,18:58:04,Egypt Daylight Time,+0300,main,origin,Update project files,false,13,91,32,mobile_app/system_stats.png,,added,A,,,true,upload.py
+20260503185804-56c63e22,2026-05-03T18:58:04+03:00,2026-05-03,18:58:04,Egypt Daylight Time,+0300,main,origin,Update project files,false,13,91,32,mobile_app/welcome_admin.png,,added,A,,,true,upload.py
+20260503185804-56c63e22,2026-05-03T18:58:04+03:00,2026-05-03,18:58:04,Egypt Daylight Time,+0300,main,origin,Update project files,false,13,91,32,pubspec.yaml,,modified,M,3,2,false,upload.py
+20260503185804-56c63e22,2026-05-03T18:58:04+03:00,2026-05-03,18:58:04,Egypt Daylight Time,+0300,main,origin,Update project files,false,13,91,32,test/widget_test.dart,,modified,M,7,20,false,upload.py
