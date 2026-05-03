@@ -33,7 +33,14 @@ This application allows users to sign in, view the current system status, contro
   - Temperature warnings
   - Gas detection
   - Motion detection
-- Display settings for light mode and dark mode
+- In-app notification history with clear action
+- Persistent settings saved locally on the device
+- Display settings for system, light, and dark modes
+- Connection settings for saved ESP32/controller IP address
+- Configurable sensor refresh interval
+- Alert preferences for gas, temperature, and motion warnings
+- Adjustable temperature warning threshold
+- Test notification action from the settings screen
 - Modern UI with a dark theme and green accent color
 - IoT-ready architecture for smart device communication
 
@@ -73,6 +80,7 @@ The following screenshots are stored in the `mobile_app/` folder.
 - **HTTP** - Communication with smart home backend or IoT controller
 - **Flutter Local Notifications** - Local alert and notification handling
 - **Permission Handler** - Runtime permission management
+- **Shared Preferences** - Persistent local storage for user settings
 - **State Management** - Built-in Flutter state management with `StatefulWidget` and `setState`
 - **Backend / IoT Layer** - Generic REST API or ESP32-based smart home controller
 
@@ -123,7 +131,7 @@ POST /control
 5. Use the full control screen to turn sensors and devices on or off.
 6. Open the statistics screen to monitor temperature, humidity, gas status, and motion state.
 7. Review notifications for important alerts and safety warnings.
-8. Change display settings to switch between light mode and dark mode.
+8. Open settings to change theme mode, controller IP, refresh interval, notification types, and temperature warning threshold.
 
 ## Project Structure
 
@@ -136,7 +144,11 @@ lib/
 |   +-- home_screen.dart           # Dashboard and system overview
 |   +-- control_screen.dart        # Full smart home control panel
 |   +-- stats_screen.dart          # Sensor readings and system statistics
+|   +-- notifications_screen.dart  # In-app alerts and notification history
+|   +-- display_screen.dart        # Theme, connection, and alert settings
+|   +-- about_screen.dart          # Team, project, and university information
 +-- services/                      # App services and integrations
+|   +-- app_settings_service.dart  # Persistent app settings storage
 |   +-- connection_service.dart    # HTTP communication with IoT controller
 |   +-- notification_service.dart  # Local notification setup and alerts
 +-- widgets/                       # Reusable UI components

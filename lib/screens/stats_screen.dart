@@ -1,8 +1,12 @@
 import 'dart:async';
+
 import 'package:flutter/material.dart';
+
+import '../app_constants.dart';
+import '../services/app_settings_service.dart';
 import '../services/connection_service.dart';
 import '../widgets/green_button.dart';
-import '../app_constants.dart';
+import 'about_screen.dart';
 import 'notifications_screen.dart';
 
 class StatsScreen extends StatefulWidget {
@@ -23,7 +27,15 @@ class _StatsScreenState extends State<StatsScreen> {
   void initState() {
     super.initState();
     _status = Map.from(widget.status);
-    _timer = Timer.periodic(const Duration(seconds: 2), (_) => _refresh());
+    AppSettingsService.settingsNotifier.addListener(_startPolling);
+    _startPolling();
+  }
+
+  void _startPolling() {
+    _timer?.cancel();
+    _refresh();
+    final seconds = AppSettingsService.settings.refreshIntervalSeconds;
+    _timer = Timer.periodic(Duration(seconds: seconds), (_) => _refresh());
   }
 
   Future<void> _refresh() async {
@@ -40,6 +52,7 @@ class _StatsScreenState extends State<StatsScreen> {
 
   @override
   void dispose() {
+    AppSettingsService.settingsNotifier.removeListener(_startPolling);
     _timer?.cancel();
     super.dispose();
   }
@@ -50,7 +63,11 @@ class _StatsScreenState extends State<StatsScreen> {
     final textColor = isDark ? Colors.white : kTextPrimary;
     final subColor = isDark ? Colors.white60 : Colors.black54;
     final cardBg = isDark ? kCardDark : kCardLight;
-    final gasDetected = _status['gasDetected'] as bool;
+    final gasDetected = _status['gasDetected'] == true;
+    final temperature = (_status['temperature'] as num?) ?? 0;
+    final temperatureWarning =
+        temperature >= AppSettingsService.settings.temperatureWarningThreshold;
+    final motionDetected = _motionDetected(_status);
 
     return Scaffold(
       backgroundColor: isDark ? kBgDark : Colors.white,
@@ -109,15 +126,25 @@ class _StatsScreenState extends State<StatsScreen> {
               ),
             ),
           ),
+          IconButton(
+            tooltip: 'About Us',
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const AboutScreen()),
+            ),
+            icon: Icon(
+              Icons.info_outline,
+              color: isDark ? Colors.white70 : Colors.black54,
+            ),
+          ),
         ],
       ),
       body: SafeArea(
-        child: Padding(
+        child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Live indicator
               Row(
                 children: [
                   Container(
@@ -148,8 +175,6 @@ class _StatsScreenState extends State<StatsScreen> {
                 ),
               ),
               const SizedBox(height: 20),
-
-              // Stats card
               Container(
                 decoration: BoxDecoration(
                   color: cardBg,
@@ -162,15 +187,15 @@ class _StatsScreenState extends State<StatsScreen> {
                   children: [
                     _row(
                       'System',
-                      _status['system'] ? 'Active' : 'Inactive',
+                      _status['system'] == true ? 'Active' : 'Inactive',
                       subColor,
-                      _status['system'] ? kGreen : Colors.red,
+                      _status['system'] == true ? kGreen : Colors.red,
                       isDark,
                       last: false,
                     ),
                     _row(
                       'Gas Status',
-                      gasDetected ? '⚠️ Gas Detected' : '✓ Normal',
+                      gasDetected ? 'Gas Detected' : 'Normal',
                       subColor,
                       gasDetected ? Colors.red : kGreen,
                       isDark,
@@ -186,9 +211,9 @@ class _StatsScreenState extends State<StatsScreen> {
                     ),
                     _row(
                       'Temperature',
-                      '${_status['temperature']} °C',
+                      '$temperature C',
                       subColor,
-                      textColor,
+                      temperatureWarning ? Colors.orange : textColor,
                       isDark,
                       last: false,
                     ),
@@ -201,10 +226,18 @@ class _StatsScreenState extends State<StatsScreen> {
                       last: false,
                     ),
                     _row(
-                      'LED s',
-                      _status['led2'] ? 'ON' : 'OFF',
+                      'Motion',
+                      motionDetected ? 'Detected' : 'Clear',
                       subColor,
-                      _status['led2'] ? kGreen : textColor,
+                      motionDetected ? Colors.orange : kGreen,
+                      isDark,
+                      last: false,
+                    ),
+                    _row(
+                      'LEDs',
+                      _status['led2'] == true ? 'ON' : 'OFF',
+                      subColor,
+                      _status['led2'] == true ? kGreen : textColor,
                       isDark,
                       last: true,
                     ),
@@ -227,6 +260,12 @@ class _StatsScreenState extends State<StatsScreen> {
     );
   }
 
+  bool _motionDetected(Map<String, dynamic> data) {
+    return data['motionDetected'] == true ||
+        data['pirDetected'] == true ||
+        data['motion'] == true;
+  }
+
   Widget _row(
     String label,
     String value,
@@ -242,22 +281,30 @@ class _StatsScreenState extends State<StatsScreen> {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(label,
-                  style: TextStyle(color: labelColor, fontSize: 14)),
-              Text(value,
+              Expanded(
+                child: Text(
+                  label,
+                  style: TextStyle(color: labelColor, fontSize: 14),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Flexible(
+                child: Text(
+                  value,
+                  textAlign: TextAlign.end,
+                  overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     color: valueColor,
                     fontWeight: FontWeight.w600,
                     fontSize: 14,
-                  )),
+                  ),
+                ),
+              ),
             ],
           ),
         ),
         if (!last)
-          Divider(
-            height: 1,
-            color: isDark ? Colors.white10 : Colors.black12,
-          ),
+          Divider(height: 1, color: isDark ? Colors.white10 : Colors.black12),
       ],
     );
   }

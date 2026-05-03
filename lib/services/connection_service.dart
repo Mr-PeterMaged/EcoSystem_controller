@@ -40,7 +40,8 @@ class ConnectionService {
   }
 
   static Future<Map<String, dynamic>?> sendControl(
-      Map<String, dynamic> data) async {
+    Map<String, dynamic> data,
+  ) async {
     if (!isConnected) return null;
     try {
       final res = await http

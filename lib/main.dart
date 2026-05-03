@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 import 'screens/loading_screen.dart';
+import 'services/app_settings_service.dart';
 import 'services/notification_service.dart';
 import 'theme_notifier.dart';
 import 'app_constants.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await AppSettingsService.init();
+  themeNotifier.value = AppSettingsService.settings.themeMode;
   await NotificationService.init();
   runApp(const SmartHomeApp());
 }

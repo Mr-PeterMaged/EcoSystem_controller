@@ -28,15 +28,15 @@ class ControlButton extends StatelessWidget {
           color: !enabled
               ? (isDark ? Colors.grey[800] : Colors.grey[200])
               : isOn
-                  ? kGreen.withValues(alpha: 0.12)
-                  : (isDark ? kCardDark : kCardLight),
+              ? kGreen.withValues(alpha: 0.12)
+              : (isDark ? kCardDark : kCardLight),
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
             color: !enabled
                 ? Colors.grey.withValues(alpha: 0.3)
                 : isOn
-                    ? kGreen
-                    : (isDark ? Colors.white12 : Colors.black12),
+                ? kGreen
+                : (isDark ? Colors.white12 : Colors.black12),
             width: (isOn && enabled) ? 2 : 1,
           ),
         ),
@@ -62,8 +62,8 @@ class ControlButton extends StatelessWidget {
                 color: !enabled
                     ? Colors.grey[400]
                     : isOn
-                        ? kGreen
-                        : Colors.grey,
+                    ? kGreen
+                    : Colors.grey,
               ),
             ),
           ],

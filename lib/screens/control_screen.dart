@@ -1,8 +1,10 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import '../services/app_settings_service.dart';
 import '../services/connection_service.dart';
 import '../widgets/control_button.dart';
 import '../app_constants.dart';
+import 'about_screen.dart';
 import 'notifications_screen.dart';
 
 class ControlScreen extends StatefulWidget {
@@ -36,11 +38,15 @@ class _ControlScreenState extends State<ControlScreen> {
   @override
   void initState() {
     super.initState();
+    AppSettingsService.settingsNotifier.addListener(_startPolling);
+    _startPolling();
+  }
+
+  void _startPolling() {
+    _timer?.cancel();
     _fetchStatus();
-    _timer = Timer.periodic(
-      const Duration(seconds: 2),
-      (_) => _fetchStatus(),
-    );
+    final seconds = AppSettingsService.settings.refreshIntervalSeconds;
+    _timer = Timer.periodic(Duration(seconds: seconds), (_) => _fetchStatus());
   }
 
   Future<void> _fetchStatus() async {
@@ -64,6 +70,7 @@ class _ControlScreenState extends State<ControlScreen> {
 
   @override
   void dispose() {
+    AppSettingsService.settingsNotifier.removeListener(_startPolling);
     _timer?.cancel();
     super.dispose();
   }
@@ -79,10 +86,10 @@ class _ControlScreenState extends State<ControlScreen> {
       ('system', 'System', true),
       ('gasSensor', 'Gas Sensor', systemOn),
       ('tempSensor', 'Temperature', systemOn),
-      ('ledSensor', 'LED s', systemOn),
+      ('ledSensor', 'LEDs', systemOn),
       ('pirSensor', 'PIR', systemOn),
       ('ldrSensor', 'LDR', systemOn),
-      ('buzzer', 'BUZZER', systemOn),
+      ('buzzer', 'Buzzer', systemOn),
       ('autoLight', 'Auto Light', systemOn),
     ];
 
@@ -143,6 +150,17 @@ class _ControlScreenState extends State<ControlScreen> {
               ),
             ),
           ),
+          IconButton(
+            tooltip: 'About Us',
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const AboutScreen()),
+            ),
+            icon: Icon(
+              Icons.info_outline,
+              color: isDark ? Colors.white70 : Colors.black54,
+            ),
+          ),
         ],
       ),
       body: SafeArea(
@@ -174,8 +192,7 @@ class _ControlScreenState extends State<ControlScreen> {
               const SizedBox(height: 16),
               Expanded(
                 child: GridView.builder(
-                  gridDelegate:
-                      const SliverGridDelegateWithFixedCrossAxisCount(
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                     crossAxisCount: 2,
                     crossAxisSpacing: 12,
                     mainAxisSpacing: 12,

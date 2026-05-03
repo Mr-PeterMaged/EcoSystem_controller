@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'home_screen.dart';
+import '../services/app_settings_service.dart';
 import '../services/connection_service.dart';
 import '../widgets/green_button.dart';
 import '../app_constants.dart';
@@ -12,17 +13,23 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  final _ipCtrl = TextEditingController(text: '10.234.227.18');
+  late final TextEditingController _ipCtrl;
   final _userCtrl = TextEditingController();
   final _passCtrl = TextEditingController();
   bool _obscure = true;
   bool _loading = false;
   String _error = '';
 
-  final Map<String, String> _users = {
-    'Admin': '1234',
-    'User': '0000',
-  };
+  final Map<String, String> _users = {'Admin': '1234', 'User': '0000'};
+
+  @override
+  void initState() {
+    super.initState();
+    final settings = AppSettingsService.settings;
+    _ipCtrl = TextEditingController(
+      text: settings.autoConnect ? settings.controllerIp : '',
+    );
+  }
 
   @override
   void dispose() {
@@ -37,8 +44,10 @@ class _LoginScreenState extends State<LoginScreen> {
     final pass = _passCtrl.text.trim();
     final ip = _ipCtrl.text.trim();
 
-    if (user.isEmpty || pass.isEmpty) {
-      setState(() => _error = 'Username and Password are required');
+    if (ip.isEmpty || user.isEmpty || pass.isEmpty) {
+      setState(
+        () => _error = 'IP Address, Username, and Password are required',
+      );
       return;
     }
     if (!_users.containsKey(user) || _users[user] != pass) {
@@ -52,6 +61,9 @@ class _LoginScreenState extends State<LoginScreen> {
     });
 
     final connected = await ConnectionService.connectWifi(ip);
+    await AppSettingsService.update(
+      AppSettingsService.settings.copyWith(controllerIp: ip),
+    );
     if (!mounted) return;
     setState(() => _loading = false);
 
@@ -184,11 +196,7 @@ class _LoginScreenState extends State<LoginScreen> {
               Center(
                 child: _loading
                     ? const CircularProgressIndicator(color: kGreen)
-                    : GreenButton(
-                        label: 'Login',
-                        width: 200,
-                        onTap: _login,
-                      ),
+                    : GreenButton(label: 'Login', width: 200, onTap: _login),
               ),
               const SizedBox(height: 40),
             ],
@@ -199,13 +207,9 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Widget _label(String text, Color color) => Text(
-        text,
-        style: TextStyle(
-          fontSize: 14,
-          fontWeight: FontWeight.w500,
-          color: color,
-        ),
-      );
+    text,
+    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: color),
+  );
 
   Widget _field({
     required TextEditingController controller,
@@ -222,9 +226,7 @@ class _LoginScreenState extends State<LoginScreen> {
       decoration: BoxDecoration(
         color: inputBg,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: isDark ? Colors.white12 : Colors.black12,
-        ),
+        border: Border.all(color: isDark ? Colors.white12 : Colors.black12),
       ),
       child: TextField(
         controller: controller,
