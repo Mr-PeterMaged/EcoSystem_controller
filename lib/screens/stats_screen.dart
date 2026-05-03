@@ -1,88 +1,264 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
+import '../services/connection_service.dart';
+import '../widgets/green_button.dart';
+import '../app_constants.dart';
+import 'notifications_screen.dart';
 
-class StatsScreen extends StatelessWidget {
+class StatsScreen extends StatefulWidget {
   final Map<String, dynamic> status;
 
   const StatsScreen({super.key, required this.status});
 
-  Widget _buildRow(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(label,
-              style: const TextStyle(fontSize: 16, color: Colors.grey)),
-          Text(value,
-              style: const TextStyle(
-                  fontSize: 16, fontWeight: FontWeight.w500)),
-        ],
-      ),
-    );
+  @override
+  State<StatsScreen> createState() => _StatsScreenState();
+}
+
+class _StatsScreenState extends State<StatsScreen> {
+  late Map<String, dynamic> _status;
+  Timer? _timer;
+  bool _isConnected = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _status = Map.from(widget.status);
+    _timer = Timer.periodic(const Duration(seconds: 2), (_) => _refresh());
+  }
+
+  Future<void> _refresh() async {
+    final data = await ConnectionService.getStatus();
+    if (data != null && mounted) {
+      setState(() {
+        _status = data;
+        _isConnected = true;
+      });
+    } else if (mounted) {
+      setState(() => _isConnected = false);
+    }
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textColor = isDark ? Colors.white : kTextPrimary;
+    final subColor = isDark ? Colors.white60 : Colors.black54;
+    final cardBg = isDark ? kCardDark : kCardLight;
+    final gasDetected = _status['gasDetected'] as bool;
+
     return Scaffold(
+      backgroundColor: isDark ? kBgDark : Colors.white,
       appBar: AppBar(
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Color(0xFF4CAF50)),
-          onPressed: () => Navigator.pop(context),
+        backgroundColor: isDark ? kAppBarDark : Colors.white,
+        elevation: 0,
+        leading: GestureDetector(
+          onTap: () => Navigator.pop(context),
+          child: Container(
+            margin: const EdgeInsets.all(8),
+            decoration: const BoxDecoration(
+              color: kGreen,
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.arrow_back_ios_new,
+              color: Colors.white,
+              size: 16,
+            ),
+          ),
         ),
-        title: const Text('System Stats',
-            style: TextStyle(fontWeight: FontWeight.bold)),
+        title: Text(
+          'System Stats',
+          style: TextStyle(color: textColor, fontWeight: FontWeight.bold),
+        ),
         actions: [
-          IconButton(icon: const Icon(Icons.notifications_outlined), onPressed: () {}),
-          IconButton(icon: const Icon(Icons.menu), onPressed: () {}),
-        ],
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          children: [
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: Colors.grey[100],
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Column(
+          GestureDetector(
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const NotificationsScreen()),
+            ),
+            child: Container(
+              margin: const EdgeInsets.only(right: 12),
+              padding: const EdgeInsets.all(6),
+              child: Stack(
+                clipBehavior: Clip.none,
                 children: [
-                  _buildRow('System :', status['system'] ? 'Active' : 'Inactive'),
-                  const Divider(),
-                  _buildRow('Gas Status :',
-                      status['gasDetected'] ? 'Gas detected' : 'Normal'),
-                  const Divider(),
-                  _buildRow('Temperature :',
-                      '${status['temperature']} C'),
-                  const Divider(),
-                  _buildRow('LED s :', status['led2'] ? 'ON' : 'OFF'),
-                  const Divider(),
-                  _buildRow('Humidity :', '${status['humidity']}%'),
+                  Icon(
+                    Icons.notifications_none,
+                    color: isDark ? Colors.white70 : Colors.black54,
+                  ),
+                  if (gasDetected)
+                    Positioned(
+                      right: -2,
+                      top: -2,
+                      child: Container(
+                        width: 8,
+                        height: 8,
+                        decoration: const BoxDecoration(
+                          color: Colors.red,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                    ),
                 ],
               ),
             ),
-            const SizedBox(height: 20),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF4CAF50),
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(25),
+          ),
+        ],
+      ),
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Live indicator
+              Row(
+                children: [
+                  Container(
+                    width: 8,
+                    height: 8,
+                    decoration: BoxDecoration(
+                      color: _isConnected ? Colors.green : Colors.red,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    _isConnected ? 'Live data' : 'No Connection',
+                    style: TextStyle(
+                      color: _isConnected ? Colors.green : Colors.red,
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'System Stats',
+                style: TextStyle(
+                  fontSize: 26,
+                  fontWeight: FontWeight.bold,
+                  color: textColor,
+                ),
+              ),
+              const SizedBox(height: 20),
+
+              // Stats card
+              Container(
+                decoration: BoxDecoration(
+                  color: cardBg,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: isDark ? Colors.white12 : Colors.black12,
                   ),
                 ),
-                onPressed: () => Navigator.pop(context),
-                icon: const Icon(Icons.refresh, color: Colors.white),
-                label: const Text('Refresh',
-                    style: TextStyle(color: Colors.white, fontSize: 16)),
+                child: Column(
+                  children: [
+                    _row(
+                      'System',
+                      _status['system'] ? 'Active' : 'Inactive',
+                      subColor,
+                      _status['system'] ? kGreen : Colors.red,
+                      isDark,
+                      last: false,
+                    ),
+                    _row(
+                      'Gas Status',
+                      gasDetected ? '⚠️ Gas Detected' : '✓ Normal',
+                      subColor,
+                      gasDetected ? Colors.red : kGreen,
+                      isDark,
+                      last: false,
+                    ),
+                    _row(
+                      'Gas Level',
+                      '${_status['gasPercent']}%',
+                      subColor,
+                      textColor,
+                      isDark,
+                      last: false,
+                    ),
+                    _row(
+                      'Temperature',
+                      '${_status['temperature']} °C',
+                      subColor,
+                      textColor,
+                      isDark,
+                      last: false,
+                    ),
+                    _row(
+                      'Humidity',
+                      '${_status['humidity']}%',
+                      subColor,
+                      textColor,
+                      isDark,
+                      last: false,
+                    ),
+                    _row(
+                      'LED s',
+                      _status['led2'] ? 'ON' : 'OFF',
+                      subColor,
+                      _status['led2'] ? kGreen : textColor,
+                      isDark,
+                      last: true,
+                    ),
+                  ],
+                ),
               ),
-            ),
-          ],
+              const SizedBox(height: 30),
+              Center(
+                child: GreenButton(
+                  label: 'Refresh',
+                  icon: Icons.refresh,
+                  width: 160,
+                  onTap: _refresh,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
+    );
+  }
+
+  Widget _row(
+    String label,
+    String value,
+    Color labelColor,
+    Color valueColor,
+    bool isDark, {
+    required bool last,
+  }) {
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(label,
+                  style: TextStyle(color: labelColor, fontSize: 14)),
+              Text(value,
+                  style: TextStyle(
+                    color: valueColor,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 14,
+                  )),
+            ],
+          ),
+        ),
+        if (!last)
+          Divider(
+            height: 1,
+            color: isDark ? Colors.white10 : Colors.black12,
+          ),
+      ],
     );
   }
 }

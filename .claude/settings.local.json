@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(dart analyze *)",
+      "Bash(del \"d:\\\\app1\\\\lib\\\\Login.dart\" \"d:\\\\app1\\\\lib\\\\LectureFile.dart\" \"d:\\\\app1\\\\lib\\\\Shosh.dart\" \"d:\\\\app1\\\\lib\\\\new_dartApp.dart\" \"d:\\\\app1\\\\lib\\\\Project2.dart\")"
+    ]
+  }
+}

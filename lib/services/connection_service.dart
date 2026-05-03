@@ -4,19 +4,17 @@ import 'package:http/http.dart' as http;
 
 class ConnectionService {
   static String? espIp;
-  static bool useWifi = true;
   static bool isConnected = false;
+  static const int _port = 8080;
 
-  // WiFi
   static Future<bool> connectWifi(String ip) async {
     try {
       espIp = ip;
       final res = await http
-          .get(Uri.parse('http://$ip/status'))
+          .get(Uri.parse('http://$ip:$_port/status'))
           .timeout(const Duration(seconds: 3));
       if (res.statusCode == 200) {
         isConnected = true;
-        useWifi = true;
         return true;
       }
       return false;
@@ -29,7 +27,7 @@ class ConnectionService {
     if (!isConnected) return null;
     try {
       final res = await http
-          .get(Uri.parse('http://$espIp:8080/status'))
+          .get(Uri.parse('http://$espIp:$_port/status'))
           .timeout(const Duration(seconds: 3));
       if (res.statusCode == 200) {
         return jsonDecode(res.body);
@@ -47,10 +45,10 @@ class ConnectionService {
     try {
       final res = await http
           .post(
-        Uri.parse('http://$espIp:8080/control'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode(data),
-      )
+            Uri.parse('http://$espIp:$_port/control'),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode(data),
+          )
           .timeout(const Duration(seconds: 3));
       if (res.statusCode == 200) {
         return jsonDecode(res.body);

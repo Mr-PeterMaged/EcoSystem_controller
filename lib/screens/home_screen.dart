@@ -1,11 +1,15 @@
-import 'package:flutter/material.dart';
 import 'dart:async';
+import 'package:flutter/material.dart';
 import '../services/connection_service.dart';
 import '../services/notification_service.dart';
 import '../widgets/control_button.dart';
+import '../widgets/green_button.dart';
+import '../app_constants.dart';
 import 'control_screen.dart';
 import 'stats_screen.dart';
 import 'login_screen.dart';
+import 'display_screen.dart';
+import 'notifications_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   final String username;
@@ -56,7 +60,6 @@ class _HomeScreenState extends State<HomeScreen> {
     _timer = Timer.periodic(const Duration(seconds: 2), (_) async {
       final data = await ConnectionService.getStatus();
       if (data != null && mounted) {
-        // Gas notification
         if (data['gasDetected'] == true && _prevGasDetected == false) {
           await NotificationService.gasAlert();
         }
@@ -72,12 +75,10 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _toggle(String key) async {
-    if (!_status['system'] && key != 'system') return;
+    if (!(_status['system'] as bool) && key != 'system') return;
     final newVal = !(_status[key] as bool);
     final result = await ConnectionService.sendControl({key: newVal});
-    if (result != null && mounted) {
-      setState(() => _status = result);
-    }
+    if (result != null && mounted) setState(() => _status = result);
   }
 
   @override
@@ -86,86 +87,176 @@ class _HomeScreenState extends State<HomeScreen> {
     super.dispose();
   }
 
-  Widget _buildDrawer() {
-    return Drawer(
-      child: ListView(
-        padding: EdgeInsets.zero,
-        children: [
-          DrawerHeader(
-            decoration: const BoxDecoration(color: Color(0xFF4CAF50)),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                const Icon(Icons.home, color: Colors.white, size: 40),
-                const SizedBox(height: 8),
-                Text(
-                  'Menu',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textColor = isDark ? Colors.white : kTextPrimary;
+    final subColor = isDark ? Colors.white60 : Colors.black54;
+    final systemOn = _status['system'] as bool;
+    final gasDetected = _status['gasDetected'] as bool;
+
+    return Scaffold(
+      backgroundColor: isDark ? kBgDark : Colors.white,
+      endDrawer: _buildDrawer(isDark),
+      appBar: _buildAppBar(isDark, gasDetected),
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Connection indicator
+              Row(
+                children: [
+                  Container(
+                    width: 8,
+                    height: 8,
+                    decoration: BoxDecoration(
+                      color: _isConnected ? Colors.green : Colors.red,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    _isConnected ? 'Connected to ESP32' : 'No Connection',
+                    style: TextStyle(
+                      color: _isConnected ? Colors.green : Colors.red,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+
+              Text(
+                'Welcome ${widget.username}',
+                style: TextStyle(
+                  fontSize: 26,
+                  fontWeight: FontWeight.bold,
+                  color: textColor,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Row(
+                children: [
+                  Text(
+                    'System : ',
+                    style: TextStyle(fontSize: 14, color: subColor),
+                  ),
+                  Text(
+                    systemOn ? 'ON' : 'OFF',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      color: systemOn ? kGreen : Colors.red,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 24),
+
+              // 2×2 control grid
+              Row(
+                children: [
+                  Expanded(
+                    child: ControlButton(
+                      label: 'System',
+                      isOn: _status['system'] as bool,
+                      onTap: () => _toggle('system'),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ControlButton(
+                      label: 'Gas Sensor',
+                      isOn: _status['gasSensor'] as bool,
+                      enabled: systemOn,
+                      onTap: () => _toggle('gasSensor'),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: ControlButton(
+                      label: 'Temperature',
+                      isOn: _status['tempSensor'] as bool,
+                      enabled: systemOn,
+                      onTap: () => _toggle('tempSensor'),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ControlButton(
+                      label: 'LED s',
+                      isOn: _status['ledSensor'] as bool,
+                      enabled: systemOn,
+                      onTap: () => _toggle('ledSensor'),
+                    ),
+                  ),
+                ],
+              ),
+
+              const SizedBox(height: 32),
+
+              Center(
+                child: GreenButton(
+                  label: 'Show full control',
+                  width: 220,
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const ControlScreen()),
                   ),
                 ),
-              ],
-            ),
+              ),
+              const SizedBox(height: 16),
+              Center(
+                child: GreenButton(
+                  label: 'Show Stats',
+                  width: 220,
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => StatsScreen(status: _status),
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
-          ListTile(
-            leading: const Icon(Icons.home, color: Color(0xFF4CAF50)),
-            title: const Text('Home Page'),
-            onTap: () => Navigator.pop(context),
-          ),
-          ListTile(
-            leading: const Icon(
-              Icons.display_settings,
-              color: Color(0xFF4CAF50),
-            ),
-            title: const Text('Display 🌞🌙'),
-            onTap: () => Navigator.pop(context),
-          ),
-          ListTile(
-            leading: const Icon(Icons.switch_account, color: Color(0xFF4CAF50)),
-            title: const Text('Switch Acc.'),
-            onTap: () {
-              Navigator.pop(context);
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(builder: (_) => const LoginScreen()),
-              );
-            },
-          ),
-          ListTile(
-            leading: const Icon(Icons.logout, color: Color(0xFF4CAF50)),
-            title: const Text('Log out'),
-            onTap: () {
-              Navigator.pop(context);
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(builder: (_) => const LoginScreen()),
-              );
-            },
-          ),
-        ],
+        ),
       ),
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final systemOn = _status['system'] as bool;
-
-    return Scaffold(
-      drawer: _buildDrawer(),
-      appBar: AppBar(
-        actions: [
-          IconButton(
-            icon: Stack(
+  AppBar _buildAppBar(bool isDark, bool gasDetected) {
+    return AppBar(
+      backgroundColor: isDark ? kAppBarDark : Colors.white,
+      elevation: 0,
+      automaticallyImplyLeading: false,
+      actions: [
+        GestureDetector(
+          onTap: () => Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const NotificationsScreen()),
+          ),
+          child: Container(
+            margin: const EdgeInsets.all(8),
+            padding: const EdgeInsets.all(6),
+            child: Stack(
+              clipBehavior: Clip.none,
               children: [
-                const Icon(Icons.notifications_outlined),
-                if (_status['gasDetected'] == true)
+                Icon(
+                  Icons.notifications_none,
+                  color: isDark ? Colors.white70 : Colors.black54,
+                ),
+                if (gasDetected)
                   Positioned(
-                    right: 0,
-                    top: 0,
+                    right: -2,
+                    top: -2,
                     child: Container(
                       width: 8,
                       height: 8,
@@ -177,122 +268,99 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
               ],
             ),
-            onPressed: () {},
           ),
-          Builder(
-            builder: (ctx) => IconButton(
-              icon: const Icon(Icons.menu),
-              onPressed: () => Scaffold.of(ctx).openDrawer(),
-            ),
-          ),
-        ],
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Connection status
-            Row(
-              children: [
-                Icon(
-                  _isConnected ? Icons.wifi : Icons.wifi_off,
-                  color: _isConnected ? Colors.green : Colors.red,
-                  size: 16,
-                ),
-                const SizedBox(width: 4),
-                Text(
-                  _isConnected ? 'Connected' : 'No Connection',
-                  style: TextStyle(
-                    color: _isConnected ? Colors.green : Colors.red,
-                    fontSize: 12,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-
-            Text(
-              'Welcome ${widget.username}',
-              style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 4),
-            Row(
-              children: [
-                const Text('System : ', style: TextStyle(fontSize: 16)),
-                Text(
-                  systemOn ? 'ON' : 'OFF',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: systemOn ? Colors.green : Colors.red,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 20),
-
-            // Control Grid
-            GridView.count(
-              shrinkWrap: true,
-              crossAxisCount: 2,
-              crossAxisSpacing: 12,
-              mainAxisSpacing: 12,
-              childAspectRatio: 2,
-              children: [
-                ControlButton(
-                  label: 'System',
-                  isOn: _status['system'],
-                  onTap: () => _toggle('system'),
-                ),
-                ControlButton(
-                  label: 'Gas Sensor',
-                  isOn: _status['gasSensor'],
-                  enabled: systemOn,
-                  onTap: () => _toggle('gasSensor'),
-                ),
-                ControlButton(
-                  label: 'Temperature',
-                  isOn: _status['tempSensor'],
-                  enabled: systemOn,
-                  onTap: () => _toggle('tempSensor'),
-                ),
-                ControlButton(
-                  label: 'LED s',
-                  isOn: _status['ledSensor'],
-                  enabled: systemOn,
-                  onTap: () => _toggle('ledSensor'),
-                ),
-              ],
-            ),
-
-            const SizedBox(height: 20),
-
-            // Buttons
-            SizedBox(
-              width: double.infinity,
-              child: OutlinedButton(
-                onPressed: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) =>
-                        ControlScreen(status: _status, onToggle: _toggle),
-                  ),
-                ),
-                child: const Text('Show full control'),
+        ),
+        Builder(
+          builder: (ctx) => GestureDetector(
+            onTap: () => Scaffold.of(ctx).openEndDrawer(),
+            child: Container(
+              margin: const EdgeInsets.only(right: 12, top: 8, bottom: 8),
+              padding: const EdgeInsets.all(6),
+              child: Icon(
+                Icons.menu,
+                color: isDark ? Colors.white70 : Colors.black54,
               ),
             ),
-            const SizedBox(height: 8),
-            SizedBox(
-              width: double.infinity,
-              child: OutlinedButton(
-                onPressed: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => StatsScreen(status: _status),
-                  ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Drawer _buildDrawer(bool isDark) {
+    final textColor = isDark ? Colors.white : kTextPrimary;
+    return Drawer(
+      backgroundColor: isDark ? kBgDarkSurface : Colors.white,
+      child: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 30),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Menu',
+                style: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                  color: textColor,
                 ),
-                child: const Text('Show Stats'),
+              ),
+              const SizedBox(height: 30),
+              _drawerItem(Icons.home, 'Home Page', () {
+                Navigator.pop(context);
+              }),
+              const SizedBox(height: 16),
+              _drawerItem(Icons.display_settings, 'Display 🌞🌙', () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const DisplayScreen()),
+                );
+              }),
+              const SizedBox(height: 16),
+              _drawerItem(Icons.swap_horiz, 'Switch Acc.', () {
+                Navigator.pop(context);
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(builder: (_) => const LoginScreen()),
+                );
+              }),
+              const SizedBox(height: 16),
+              _drawerItem(Icons.logout, 'Log out', () {
+                Navigator.pop(context);
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(builder: (_) => const LoginScreen()),
+                );
+              }),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _drawerItem(IconData icon, String label, VoidCallback onTap) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [kGreenLight, kGreenDark],
+          ),
+          borderRadius: BorderRadius.circular(30),
+        ),
+        child: Row(
+          children: [
+            Icon(icon, color: Colors.white, size: 20),
+            const SizedBox(width: 10),
+            Text(
+              label,
+              style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w600,
+                fontSize: 15,
               ),
             ),
           ],
