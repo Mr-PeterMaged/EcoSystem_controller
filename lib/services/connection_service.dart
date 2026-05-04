@@ -17,8 +17,10 @@ class ConnectionService {
         isConnected = true;
         return true;
       }
+      isConnected = false;
       return false;
     } catch (_) {
+      isConnected = false;
       return false;
     }
   }
@@ -32,6 +34,7 @@ class ConnectionService {
       if (res.statusCode == 200) {
         return jsonDecode(res.body);
       }
+      isConnected = false;
       return null;
     } catch (_) {
       isConnected = false;
@@ -54,6 +57,7 @@ class ConnectionService {
       if (res.statusCode == 200) {
         return jsonDecode(res.body);
       }
+      isConnected = false;
       return null;
     } catch (_) {
       isConnected = false;

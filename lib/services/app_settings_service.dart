@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../app_constants.dart';
+import '../models/automation_task.dart';
 
 class AppSettings {
   final ThemeMode themeMode;
+  final int accentColorValue;
   final String controllerIp;
   final bool autoConnect;
   final int refreshIntervalSeconds;
@@ -11,9 +14,12 @@ class AppSettings {
   final bool temperatureAlertsEnabled;
   final bool motionAlertsEnabled;
   final double temperatureWarningThreshold;
+  final List<String> buttonOrder;
+  final List<AutomationTask> automationTasks;
 
   const AppSettings({
     this.themeMode = ThemeMode.light,
+    this.accentColorValue = 0xFF4CAF50,
     this.controllerIp = '10.234.227.18',
     this.autoConnect = true,
     this.refreshIntervalSeconds = 2,
@@ -22,10 +28,13 @@ class AppSettings {
     this.temperatureAlertsEnabled = true,
     this.motionAlertsEnabled = true,
     this.temperatureWarningThreshold = 35,
+    this.buttonOrder = kAllDeviceKeys,
+    this.automationTasks = const [],
   });
 
   AppSettings copyWith({
     ThemeMode? themeMode,
+    int? accentColorValue,
     String? controllerIp,
     bool? autoConnect,
     int? refreshIntervalSeconds,
@@ -34,26 +43,27 @@ class AppSettings {
     bool? temperatureAlertsEnabled,
     bool? motionAlertsEnabled,
     double? temperatureWarningThreshold,
-  }) {
-    return AppSettings(
-      themeMode: themeMode ?? this.themeMode,
-      controllerIp: controllerIp ?? this.controllerIp,
-      autoConnect: autoConnect ?? this.autoConnect,
-      refreshIntervalSeconds:
-          refreshIntervalSeconds ?? this.refreshIntervalSeconds,
-      notificationsEnabled: notificationsEnabled ?? this.notificationsEnabled,
-      gasAlertsEnabled: gasAlertsEnabled ?? this.gasAlertsEnabled,
-      temperatureAlertsEnabled:
-          temperatureAlertsEnabled ?? this.temperatureAlertsEnabled,
-      motionAlertsEnabled: motionAlertsEnabled ?? this.motionAlertsEnabled,
-      temperatureWarningThreshold:
-          temperatureWarningThreshold ?? this.temperatureWarningThreshold,
-    );
-  }
+    List<String>? buttonOrder,
+    List<AutomationTask>? automationTasks,
+  }) => AppSettings(
+    themeMode: themeMode ?? this.themeMode,
+    accentColorValue: accentColorValue ?? this.accentColorValue,
+    controllerIp: controllerIp ?? this.controllerIp,
+    autoConnect: autoConnect ?? this.autoConnect,
+    refreshIntervalSeconds: refreshIntervalSeconds ?? this.refreshIntervalSeconds,
+    notificationsEnabled: notificationsEnabled ?? this.notificationsEnabled,
+    gasAlertsEnabled: gasAlertsEnabled ?? this.gasAlertsEnabled,
+    temperatureAlertsEnabled: temperatureAlertsEnabled ?? this.temperatureAlertsEnabled,
+    motionAlertsEnabled: motionAlertsEnabled ?? this.motionAlertsEnabled,
+    temperatureWarningThreshold: temperatureWarningThreshold ?? this.temperatureWarningThreshold,
+    buttonOrder: buttonOrder ?? this.buttonOrder,
+    automationTasks: automationTasks ?? this.automationTasks,
+  );
 }
 
 class AppSettingsService {
   static const _themeModeKey = 'themeMode';
+  static const _accentColorKey = 'accentColorValue';
   static const _controllerIpKey = 'controllerIp';
   static const _autoConnectKey = 'autoConnect';
   static const _refreshIntervalKey = 'refreshIntervalSeconds';
@@ -62,6 +72,8 @@ class AppSettingsService {
   static const _temperatureAlertsEnabledKey = 'temperatureAlertsEnabled';
   static const _motionAlertsEnabledKey = 'motionAlertsEnabled';
   static const _temperatureThresholdKey = 'temperatureWarningThreshold';
+  static const _buttonOrderKey = 'buttonOrder';
+  static const _automationTasksKey = 'automationTasks';
 
   static SharedPreferences? _prefs;
   static final ValueNotifier<AppSettings> settingsNotifier =
@@ -91,6 +103,8 @@ class AppSettingsService {
 
     return AppSettings(
       themeMode: _themeModeFromName(prefs.getString(_themeModeKey)),
+      accentColorValue:
+          prefs.getInt(_accentColorKey) ?? const AppSettings().accentColorValue,
       controllerIp:
           prefs.getString(_controllerIpKey) ?? const AppSettings().controllerIp,
       autoConnect:
@@ -113,7 +127,20 @@ class AppSettingsService {
       temperatureWarningThreshold:
           prefs.getDouble(_temperatureThresholdKey) ??
           const AppSettings().temperatureWarningThreshold,
+      buttonOrder: _readButtonOrder(prefs),
+      automationTasks: AutomationTask.listFromJson(
+        prefs.getString(_automationTasksKey) ?? '',
+      ),
     );
+  }
+
+  static List<String> _readButtonOrder(SharedPreferences prefs) {
+    final saved = prefs.getStringList(_buttonOrderKey);
+    if (saved == null) return kAllDeviceKeys;
+    final validKeys = kAllDeviceKeys.toSet();
+    final filtered = saved.where((k) => validKeys.contains(k)).toList();
+    final missing = kAllDeviceKeys.where((k) => !filtered.contains(k)).toList();
+    return [...filtered, ...missing];
   }
 
   static Future<void> _save(AppSettings settings) async {
@@ -121,13 +148,11 @@ class AppSettingsService {
     if (prefs == null) return;
 
     await prefs.setString(_themeModeKey, settings.themeMode.name);
+    await prefs.setInt(_accentColorKey, settings.accentColorValue);
     await prefs.setString(_controllerIpKey, settings.controllerIp);
     await prefs.setBool(_autoConnectKey, settings.autoConnect);
     await prefs.setInt(_refreshIntervalKey, settings.refreshIntervalSeconds);
-    await prefs.setBool(
-      _notificationsEnabledKey,
-      settings.notificationsEnabled,
-    );
+    await prefs.setBool(_notificationsEnabledKey, settings.notificationsEnabled);
     await prefs.setBool(_gasAlertsEnabledKey, settings.gasAlertsEnabled);
     await prefs.setBool(
       _temperatureAlertsEnabledKey,
@@ -137,6 +162,11 @@ class AppSettingsService {
     await prefs.setDouble(
       _temperatureThresholdKey,
       settings.temperatureWarningThreshold,
+    );
+    await prefs.setStringList(_buttonOrderKey, settings.buttonOrder);
+    await prefs.setString(
+      _automationTasksKey,
+      AutomationTask.listToJson(settings.automationTasks),
     );
   }
 

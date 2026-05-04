@@ -10,7 +10,9 @@ This application allows users to sign in, view the current system status, contro
 
 ## Features
 
+- First-time sign up flow for creating the initial admin account
 - User authentication through a login screen
+- Local user storage with a development mirror in `data/users.json`
 - Admin dashboard for system overview and connection status
 - Smart home system status monitoring
 - Full control panel for connected components
@@ -80,7 +82,7 @@ The following screenshots are stored in the `mobile_app/` folder.
 - **HTTP** - Communication with smart home backend or IoT controller
 - **Flutter Local Notifications** - Local alert and notification handling
 - **Permission Handler** - Runtime permission management
-- **Shared Preferences** - Persistent local storage for user settings
+- **Shared Preferences** - Persistent local storage for user settings and accounts
 - **State Management** - Built-in Flutter state management with `StatefulWidget` and `setState`
 - **Backend / IoT Layer** - Generic REST API or ESP32-based smart home controller
 
@@ -113,7 +115,21 @@ flutter devices
 flutter run
 ```
 
-### 5. Configure the IoT controller
+### 5. Build APK
+
+Use the included Python helper to build a release APK, include the project logo, show build progress, and copy the final APK into `apk_builds/`.
+
+```bash
+python build_apk.py
+```
+
+The generated APK will be saved as:
+
+```text
+apk_builds/smart_home_self_powered.apk
+```
+
+### 6. Configure the IoT controller
 
 On the login screen, enter the IP address of your smart home controller or backend server. The app is prepared to communicate with endpoints such as:
 
@@ -125,8 +141,8 @@ POST /control
 ## Usage
 
 1. Open the app on a mobile device or emulator.
-2. Log in with valid user credentials.
-3. Enter the smart home controller IP address if required.
+2. On first launch, create the initial admin account from the sign-up screen.
+3. After account creation, log in with the saved credentials.
 4. View the dashboard to check system status and sensor availability.
 5. Use the full control screen to turn sensors and devices on or off.
 6. Open the statistics screen to monitor temperature, humidity, gas status, and motion state.
@@ -140,6 +156,7 @@ lib/
 +-- main.dart                      # App entry point and root configuration
 +-- screens/                       # Main application screens
 |   +-- loading_screen.dart        # Splash/loading screen with app logo
+|   +-- signup_screen.dart         # First-time account creation screen
 |   +-- login_screen.dart          # Authentication and controller IP input
 |   +-- home_screen.dart           # Dashboard and system overview
 |   +-- control_screen.dart        # Full smart home control panel
@@ -149,11 +166,17 @@ lib/
 |   +-- about_screen.dart          # Team, project, and university information
 +-- services/                      # App services and integrations
 |   +-- app_settings_service.dart  # Persistent app settings storage
+|   +-- user_storage_service.dart  # Local account creation and login storage
 |   +-- connection_service.dart    # HTTP communication with IoT controller
 |   +-- notification_service.dart  # Local notification setup and alerts
++-- models/                        # Data models
+|   +-- app_user.dart              # Local user account model
 +-- widgets/                       # Reusable UI components
 |   +-- control_button.dart        # Toggle-style control button
 +-- assets/                        # Images and static assets
+
+data/
++-- users.json                     # Development mirror for locally created users
 
 android/                           # Android platform files
 ios/                               # iOS platform files

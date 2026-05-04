@@ -1,15 +1,23 @@
 import 'package:flutter/material.dart';
 import 'screens/loading_screen.dart';
 import 'services/app_settings_service.dart';
+import 'services/automation_service.dart';
 import 'services/notification_service.dart';
+import 'services/user_storage_service.dart';
 import 'theme_notifier.dart';
 import 'app_constants.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await AppSettingsService.init();
-  themeNotifier.value = AppSettingsService.settings.themeMode;
+  await UserStorageService.init();
+  final settings = AppSettingsService.settings;
+  themeNotifier.value = ThemeState(
+    mode: settings.themeMode,
+    accentColor: Color(settings.accentColorValue),
+  );
   await NotificationService.init();
+  AutomationService.start();
   runApp(const SmartHomeApp());
 }
 
@@ -18,23 +26,23 @@ class SmartHomeApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ValueListenableBuilder<ThemeMode>(
+    return ValueListenableBuilder<ThemeState>(
       valueListenable: themeNotifier,
-      builder: (_, mode, _) => MaterialApp(
+      builder: (_, state, _) => MaterialApp(
         title: 'Smart Home',
         debugShowCheckedModeBanner: false,
-        themeMode: mode,
+        themeMode: state.mode,
         theme: ThemeData(
           brightness: Brightness.light,
           scaffoldBackgroundColor: Colors.white,
-          colorScheme: const ColorScheme.light(primary: kGreen),
+          colorScheme: ColorScheme.light(primary: state.accentColor),
           useMaterial3: true,
         ),
         darkTheme: ThemeData(
           brightness: Brightness.dark,
           scaffoldBackgroundColor: kBgDark,
-          colorScheme: const ColorScheme.dark(
-            primary: kGreen,
+          colorScheme: ColorScheme.dark(
+            primary: state.accentColor,
             surface: kBgDarkSurface,
           ),
           useMaterial3: true,

@@ -1,4 +1,5 @@
 # Miscellaneous
+.build_cache/
 *.class
 <<<<<<< HEAD
 *.log

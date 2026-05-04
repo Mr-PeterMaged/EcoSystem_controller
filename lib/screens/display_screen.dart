@@ -4,6 +4,7 @@ import '../app_constants.dart';
 import '../services/app_settings_service.dart';
 import '../services/notification_service.dart';
 import '../theme_notifier.dart';
+import 'automation_screen.dart';
 
 class DisplayScreen extends StatefulWidget {
   const DisplayScreen({super.key});
@@ -32,9 +33,8 @@ class _DisplayScreenState extends State<DisplayScreen> {
   }
 
   void _onSettingsChanged() {
-    final settings = AppSettingsService.settings;
     if (!mounted) return;
-    setState(() => _settings = settings);
+    setState(() => _settings = AppSettingsService.settings);
   }
 
   Future<void> _update(AppSettings settings) async {
@@ -42,8 +42,13 @@ class _DisplayScreenState extends State<DisplayScreen> {
   }
 
   Future<void> _setTheme(ThemeMode mode) async {
-    themeNotifier.value = mode;
+    themeNotifier.value = themeNotifier.value.copyWith(mode: mode);
     await _update(_settings.copyWith(themeMode: mode));
+  }
+
+  Future<void> _setAccentColor(Color color) async {
+    themeNotifier.value = themeNotifier.value.copyWith(accentColor: color);
+    await _update(_settings.copyWith(accentColorValue: color.toARGB32()));
   }
 
   Future<void> _saveConnection() async {
@@ -56,8 +61,12 @@ class _DisplayScreenState extends State<DisplayScreen> {
 
   Future<void> _resetSettings() async {
     await AppSettingsService.reset();
-    themeNotifier.value = AppSettingsService.settings.themeMode;
-    _ipCtrl.text = AppSettingsService.settings.controllerIp;
+    final settings = AppSettingsService.settings;
+    themeNotifier.value = ThemeState(
+      mode: settings.themeMode,
+      accentColor: Color(settings.accentColorValue),
+    );
+    _ipCtrl.text = settings.controllerIp;
     if (!mounted) return;
     ScaffoldMessenger.of(
       context,
@@ -70,6 +79,7 @@ class _DisplayScreenState extends State<DisplayScreen> {
     final textColor = isDark ? Colors.white : kTextPrimary;
     final subColor = isDark ? Colors.white60 : Colors.black54;
     final cardBg = isDark ? kCardDark : kCardLight;
+    final accent = Theme.of(context).colorScheme.primary;
 
     return Scaffold(
       backgroundColor: isDark ? kBgDark : Colors.white,
@@ -80,10 +90,7 @@ class _DisplayScreenState extends State<DisplayScreen> {
           onTap: () => Navigator.pop(context),
           child: Container(
             margin: const EdgeInsets.all(8),
-            decoration: const BoxDecoration(
-              color: kGreen,
-              shape: BoxShape.circle,
-            ),
+            decoration: BoxDecoration(color: accent, shape: BoxShape.circle),
             child: const Icon(
               Icons.arrow_back_ios_new,
               color: Colors.white,
@@ -104,41 +111,133 @@ class _DisplayScreenState extends State<DisplayScreen> {
             _panel(
               isDark: isDark,
               cardBg: cardBg,
-              child: Column(
+              child: Row(
                 children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _themeOption(
-                          label: 'System',
-                          icon: Icons.phone_android,
-                          mode: ThemeMode.system,
-                          isDark: isDark,
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: _themeOption(
-                          label: 'Light',
-                          icon: Icons.light_mode,
-                          mode: ThemeMode.light,
-                          isDark: isDark,
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: _themeOption(
-                          label: 'Dark',
-                          icon: Icons.dark_mode,
-                          mode: ThemeMode.dark,
-                          isDark: isDark,
-                        ),
-                      ),
-                    ],
+                  Expanded(
+                    child: _themeOption(
+                      label: 'System',
+                      icon: Icons.phone_android,
+                      mode: ThemeMode.system,
+                      isDark: isDark,
+                      accent: accent,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: _themeOption(
+                      label: 'Light',
+                      icon: Icons.light_mode,
+                      mode: ThemeMode.light,
+                      isDark: isDark,
+                      accent: accent,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: _themeOption(
+                      label: 'Dark',
+                      icon: Icons.dark_mode,
+                      mode: ThemeMode.dark,
+                      isDark: isDark,
+                      accent: accent,
+                    ),
                   ),
                 ],
               ),
             ),
+
+            const SizedBox(height: 22),
+            _sectionTitle('Theme Color', textColor),
+            _panel(
+              isDark: isDark,
+              cardBg: cardBg,
+              child: Wrap(
+                spacing: 14,
+                runSpacing: 14,
+                children: kAccentColorOptions.map((color) {
+                  final selected = _settings.accentColorValue == color.toARGB32();
+                  return GestureDetector(
+                    onTap: () => _setAccentColor(color),
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 200),
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        color: color,
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: selected ? Colors.white : Colors.transparent,
+                          width: 3,
+                        ),
+                        boxShadow: selected
+                            ? [
+                                BoxShadow(
+                                  color: color.withValues(alpha: 0.55),
+                                  blurRadius: 10,
+                                  spreadRadius: 2,
+                                ),
+                              ]
+                            : null,
+                      ),
+                      child: selected
+                          ? const Icon(Icons.check, color: Colors.white, size: 20)
+                          : null,
+                    ),
+                  );
+                }).toList(),
+              ),
+            ),
+
+            const SizedBox(height: 22),
+            _sectionTitle('Automation', textColor),
+            _panel(
+              isDark: isDark,
+              cardBg: cardBg,
+              child: InkWell(
+                borderRadius: BorderRadius.circular(12),
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const AutomationScreen()),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 4),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: accent.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Icon(Icons.schedule, color: accent, size: 22),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Scheduled Tasks',
+                              style: TextStyle(
+                                color: textColor,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              'Automate device control by time',
+                              style: TextStyle(color: subColor, fontSize: 12),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Icon(Icons.chevron_right, color: subColor),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+
             const SizedBox(height: 22),
             _sectionTitle('Connection', textColor),
             _panel(
@@ -162,6 +261,7 @@ class _DisplayScreenState extends State<DisplayScreen> {
                     subtitle: 'Use the saved controller address on login',
                     value: _settings.autoConnect,
                     isDark: isDark,
+                    accent: accent,
                     onChanged: (value) =>
                         _update(_settings.copyWith(autoConnect: value)),
                   ),
@@ -179,8 +279,7 @@ class _DisplayScreenState extends State<DisplayScreen> {
                     runSpacing: 8,
                     children: [2, 5, 10, 30]
                         .map(
-                          (seconds) =>
-                              _intervalOption(seconds, isDark, textColor),
+                          (s) => _intervalOption(s, isDark, textColor, accent),
                         )
                         .toList(),
                   ),
@@ -189,7 +288,7 @@ class _DisplayScreenState extends State<DisplayScreen> {
                     alignment: Alignment.centerRight,
                     child: FilledButton.icon(
                       style: FilledButton.styleFrom(
-                        backgroundColor: kGreen,
+                        backgroundColor: accent,
                         foregroundColor: Colors.white,
                       ),
                       onPressed: _saveConnection,
@@ -200,6 +299,7 @@ class _DisplayScreenState extends State<DisplayScreen> {
                 ],
               ),
             ),
+
             const SizedBox(height: 22),
             _sectionTitle('Alerts', textColor),
             _panel(
@@ -212,6 +312,7 @@ class _DisplayScreenState extends State<DisplayScreen> {
                     subtitle: 'Enable smart home alerts',
                     value: _settings.notificationsEnabled,
                     isDark: isDark,
+                    accent: accent,
                     onChanged: (value) => _update(
                       _settings.copyWith(notificationsEnabled: value),
                     ),
@@ -221,6 +322,7 @@ class _DisplayScreenState extends State<DisplayScreen> {
                     subtitle: 'Warn when gas is detected',
                     value: _settings.gasAlertsEnabled,
                     isDark: isDark,
+                    accent: accent,
                     onChanged: _settings.notificationsEnabled
                         ? (value) => _update(
                             _settings.copyWith(gasAlertsEnabled: value),
@@ -232,9 +334,12 @@ class _DisplayScreenState extends State<DisplayScreen> {
                     subtitle: 'Warn above the selected threshold',
                     value: _settings.temperatureAlertsEnabled,
                     isDark: isDark,
+                    accent: accent,
                     onChanged: _settings.notificationsEnabled
                         ? (value) => _update(
-                            _settings.copyWith(temperatureAlertsEnabled: value),
+                            _settings.copyWith(
+                              temperatureAlertsEnabled: value,
+                            ),
                           )
                         : null,
                   ),
@@ -243,6 +348,7 @@ class _DisplayScreenState extends State<DisplayScreen> {
                     subtitle: 'Warn when PIR motion is detected',
                     value: _settings.motionAlertsEnabled,
                     isDark: isDark,
+                    accent: accent,
                     onChanged: _settings.notificationsEnabled
                         ? (value) => _update(
                             _settings.copyWith(motionAlertsEnabled: value),
@@ -263,8 +369,8 @@ class _DisplayScreenState extends State<DisplayScreen> {
                       ),
                       Text(
                         '${_settings.temperatureWarningThreshold.round()} C',
-                        style: const TextStyle(
-                          color: kGreen,
+                        style: TextStyle(
+                          color: accent,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
@@ -275,7 +381,7 @@ class _DisplayScreenState extends State<DisplayScreen> {
                     min: 20,
                     max: 60,
                     divisions: 40,
-                    activeColor: kGreen,
+                    activeColor: accent,
                     label: '${_settings.temperatureWarningThreshold.round()} C',
                     onChanged: _settings.notificationsEnabled
                         ? (value) => _update(
@@ -300,6 +406,7 @@ class _DisplayScreenState extends State<DisplayScreen> {
                 ],
               ),
             ),
+
             const SizedBox(height: 22),
             _panel(
               isDark: isDark,
@@ -363,6 +470,7 @@ class _DisplayScreenState extends State<DisplayScreen> {
     required IconData icon,
     required ThemeMode mode,
     required bool isDark,
+    required Color accent,
   }) {
     final selected = _settings.themeMode == mode;
     return GestureDetector(
@@ -372,12 +480,12 @@ class _DisplayScreenState extends State<DisplayScreen> {
         height: 86,
         decoration: BoxDecoration(
           color: selected
-              ? kGreen.withValues(alpha: 0.14)
+              ? accent.withValues(alpha: 0.14)
               : (isDark ? kBgDarkSurface : Colors.white),
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
             color: selected
-                ? kGreen
+                ? accent
                 : (isDark ? Colors.white12 : Colors.black12),
             width: selected ? 2 : 1,
           ),
@@ -385,13 +493,13 @@ class _DisplayScreenState extends State<DisplayScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, color: selected ? kGreen : Colors.grey),
+            Icon(icon, color: selected ? accent : Colors.grey),
             const SizedBox(height: 8),
             Text(
               label,
               style: TextStyle(
                 color: selected
-                    ? kGreen
+                    ? accent
                     : (isDark ? Colors.white70 : kTextPrimary),
                 fontWeight: FontWeight.w600,
               ),
@@ -420,19 +528,24 @@ class _DisplayScreenState extends State<DisplayScreen> {
     );
   }
 
-  Widget _intervalOption(int seconds, bool isDark, Color textColor) {
+  Widget _intervalOption(
+    int seconds,
+    bool isDark,
+    Color textColor,
+    Color accent,
+  ) {
     final selected = _settings.refreshIntervalSeconds == seconds;
     return ChoiceChip(
       label: Text('${seconds}s'),
       selected: selected,
-      selectedColor: kGreen.withValues(alpha: 0.18),
-      checkmarkColor: kGreen,
+      selectedColor: accent.withValues(alpha: 0.18),
+      checkmarkColor: accent,
       labelStyle: TextStyle(
-        color: selected ? kGreen : textColor,
+        color: selected ? accent : textColor,
         fontWeight: FontWeight.w600,
       ),
       backgroundColor: isDark ? kBgDarkSurface : Colors.white,
-      side: BorderSide(color: selected ? kGreen : Colors.transparent),
+      side: BorderSide(color: selected ? accent : Colors.transparent),
       onSelected: (_) =>
           _update(_settings.copyWith(refreshIntervalSeconds: seconds)),
     );
@@ -443,6 +556,7 @@ class _DisplayScreenState extends State<DisplayScreen> {
     required String subtitle,
     required bool value,
     required bool isDark,
+    required Color accent,
     required ValueChanged<bool>? onChanged,
   }) {
     return SwitchListTile.adaptive(
@@ -459,7 +573,7 @@ class _DisplayScreenState extends State<DisplayScreen> {
         style: TextStyle(color: isDark ? Colors.white54 : Colors.black54),
       ),
       value: value,
-      activeThumbColor: kGreen,
+      activeThumbColor: accent,
       onChanged: onChanged,
     );
   }

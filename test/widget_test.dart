@@ -1,17 +1,18 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
-import 'package:app1/main.dart';
+import 'package:app1/screens/signup_screen.dart';
 
 void main() {
-  testWidgets('shows loading screen before login', (WidgetTester tester) async {
-    await tester.pumpWidget(const SmartHomeApp());
+  testWidgets('renders signup screen for first account', (
+    WidgetTester tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({});
 
-    expect(find.byType(SmartHomeApp), findsOneWidget);
-    expect(find.text('Welcome'), findsNothing);
+    await tester.pumpWidget(const MaterialApp(home: SignupScreen()));
 
-    await tester.pump(const Duration(seconds: 5));
-    await tester.pumpAndSettle();
-
-    expect(find.text('Welcome'), findsOneWidget);
+    expect(find.text('Create Admin Account'), findsOneWidget);
+    expect(find.text('Create Account'), findsOneWidget);
   });
 }

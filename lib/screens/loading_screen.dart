@@ -3,7 +3,9 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../app_constants.dart';
+import '../services/user_storage_service.dart';
 import 'login_screen.dart';
+import 'signup_screen.dart';
 
 class LoadingScreen extends StatefulWidget {
   const LoadingScreen({super.key});
@@ -18,15 +20,18 @@ class _LoadingScreenState extends State<LoadingScreen> {
   @override
   void initState() {
     super.initState();
-    _timer = Timer(const Duration(seconds: 5), _openLogin);
+    _timer = Timer(const Duration(seconds: 5), _openNextScreen);
   }
 
-  void _openLogin() {
+  Future<void> _openNextScreen() async {
+    final hasUsers = await UserStorageService.hasRegisteredUsers();
     if (!mounted) return;
 
-    Navigator.of(
-      context,
-    ).pushReplacement(MaterialPageRoute(builder: (_) => const LoginScreen()));
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(
+        builder: (_) => hasUsers ? const LoginScreen() : const SignupScreen(),
+      ),
+    );
   }
 
   @override

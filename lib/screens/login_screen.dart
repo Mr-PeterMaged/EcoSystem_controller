@@ -2,38 +2,35 @@ import 'package:flutter/material.dart';
 import 'home_screen.dart';
 import '../services/app_settings_service.dart';
 import '../services/connection_service.dart';
+import '../services/user_storage_service.dart';
 import '../widgets/green_button.dart';
 import '../app_constants.dart';
+import 'signup_screen.dart';
 
 class LoginScreen extends StatefulWidget {
-  const LoginScreen({super.key});
+  final String? initialUsername;
+
+  const LoginScreen({super.key, this.initialUsername});
 
   @override
   State<LoginScreen> createState() => _LoginScreenState();
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  late final TextEditingController _ipCtrl;
-  final _userCtrl = TextEditingController();
+  late final TextEditingController _userCtrl;
   final _passCtrl = TextEditingController();
   bool _obscure = true;
   bool _loading = false;
   String _error = '';
 
-  final Map<String, String> _users = {'Admin': '1234', 'User': '0000'};
-
   @override
   void initState() {
     super.initState();
-    final settings = AppSettingsService.settings;
-    _ipCtrl = TextEditingController(
-      text: settings.autoConnect ? settings.controllerIp : '',
-    );
+    _userCtrl = TextEditingController(text: widget.initialUsername ?? '');
   }
 
   @override
   void dispose() {
-    _ipCtrl.dispose();
     _userCtrl.dispose();
     _passCtrl.dispose();
     super.dispose();
@@ -42,15 +39,14 @@ class _LoginScreenState extends State<LoginScreen> {
   Future<void> _login() async {
     final user = _userCtrl.text.trim();
     final pass = _passCtrl.text.trim();
-    final ip = _ipCtrl.text.trim();
 
-    if (ip.isEmpty || user.isEmpty || pass.isEmpty) {
-      setState(
-        () => _error = 'IP Address, Username, and Password are required',
-      );
+    if (user.isEmpty || pass.isEmpty) {
+      setState(() => _error = 'Username and Password are required');
       return;
     }
-    if (!_users.containsKey(user) || _users[user] != pass) {
+
+    final appUser = await UserStorageService.login(user, pass);
+    if (appUser == null) {
       setState(() => _error = 'Invalid username or password');
       return;
     }
@@ -60,10 +56,9 @@ class _LoginScreenState extends State<LoginScreen> {
       _error = '';
     });
 
+    final ip = AppSettingsService.settings.controllerIp;
     final connected = await ConnectionService.connectWifi(ip);
-    await AppSettingsService.update(
-      AppSettingsService.settings.copyWith(controllerIp: ip),
-    );
+
     if (!mounted) return;
     setState(() => _loading = false);
 
@@ -71,8 +66,8 @@ class _LoginScreenState extends State<LoginScreen> {
       context,
       MaterialPageRoute(
         builder: (_) => HomeScreen(
-          username: user,
-          isAdmin: user == 'Admin',
+          username: appUser.displayName,
+          isAdmin: appUser.isAdmin,
           connectedViaWifi: connected,
         ),
       ),
@@ -85,6 +80,7 @@ class _LoginScreenState extends State<LoginScreen> {
     final textColor = isDark ? Colors.white : kTextPrimary;
     final hintColor = isDark ? Colors.white38 : Colors.black38;
     final inputBg = isDark ? kCardDark : kCardLight;
+    final accent = Theme.of(context).colorScheme.primary;
 
     return Scaffold(
       body: SafeArea(
@@ -108,19 +104,6 @@ class _LoginScreenState extends State<LoginScreen> {
                 style: TextStyle(fontSize: 14, color: hintColor),
               ),
               const SizedBox(height: 40),
-
-              _label('ESP32 IP Address:', textColor),
-              const SizedBox(height: 8),
-              _field(
-                controller: _ipCtrl,
-                hint: 'e.g. 192.168.1.100',
-                icon: Icons.wifi,
-                isDark: isDark,
-                inputBg: inputBg,
-                hintColor: hintColor,
-                textColor: textColor,
-              ),
-              const SizedBox(height: 20),
 
               _label('Username:', textColor),
               const SizedBox(height: 8),
@@ -195,8 +178,18 @@ class _LoginScreenState extends State<LoginScreen> {
               const SizedBox(height: 40),
               Center(
                 child: _loading
-                    ? const CircularProgressIndicator(color: kGreen)
+                    ? CircularProgressIndicator(color: accent)
                     : GreenButton(label: 'Login', width: 200, onTap: _login),
+              ),
+              const SizedBox(height: 16),
+              Center(
+                child: TextButton(
+                  onPressed: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const SignupScreen()),
+                  ),
+                  child: const Text('Create a new account'),
+                ),
               ),
               const SizedBox(height: 40),
             ],

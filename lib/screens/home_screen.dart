@@ -7,6 +7,7 @@ import '../widgets/control_button.dart';
 import '../widgets/green_button.dart';
 import '../app_constants.dart';
 import 'about_screen.dart';
+import 'automation_screen.dart';
 import 'control_screen.dart';
 import 'stats_screen.dart';
 import 'login_screen.dart';
@@ -96,7 +97,7 @@ class _HomeScreenState extends State<HomeScreen> {
     }
     _prevTemperatureWarning = temperatureWarning;
 
-    final motionDetected = _motionDetected(data);
+    final motionDetected = isMotionDetected(data);
     if (motionDetected && !_prevMotionDetected) {
       await NotificationService.motionAlert();
     }
@@ -104,10 +105,45 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _toggle(String key) async {
+    if (!_hasDeviceConnection) {
+      _showNoConnectionMessage();
+      return;
+    }
+
     if (!(_status['system'] as bool) && key != 'system') return;
     final newVal = !(_status[key] as bool);
-    final result = await ConnectionService.sendControl({key: newVal});
-    if (result != null && mounted) setState(() => _status = result);
+
+    final Map<String, dynamic> command;
+    if (key == 'system' && !newVal) {
+      command = {for (final k in kAllDeviceKeys) k: false};
+    } else {
+      command = {key: newVal};
+    }
+
+    final result = await ConnectionService.sendControl(command);
+    if (result != null && mounted) {
+      setState(() => _status = result);
+    } else if (mounted) {
+      setState(() => _isConnected = false);
+      _showNoConnectionMessage();
+    }
+  }
+
+  Future<void> _applyPowerSave(Map<String, bool> preset) async {
+    if (!_hasDeviceConnection) {
+      _showNoConnectionMessage();
+      return;
+    }
+
+    final result = await ConnectionService.sendControl(
+      Map<String, dynamic>.from(preset),
+    );
+    if (result != null && mounted) {
+      setState(() => _status = result);
+    } else if (mounted) {
+      setState(() => _isConnected = false);
+      _showNoConnectionMessage();
+    }
   }
 
   @override
@@ -122,13 +158,14 @@ class _HomeScreenState extends State<HomeScreen> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final textColor = isDark ? Colors.white : kTextPrimary;
     final subColor = isDark ? Colors.white60 : Colors.black54;
+    final accent = Theme.of(context).colorScheme.primary;
     final systemOn = _status['system'] as bool;
     final gasDetected = _status['gasDetected'] as bool;
 
     return Scaffold(
       backgroundColor: isDark ? kBgDark : Colors.white,
-      endDrawer: _buildDrawer(isDark),
-      appBar: _buildAppBar(isDark, gasDetected),
+      endDrawer: _buildDrawer(context, isDark, accent),
+      appBar: _buildAppBar(isDark, gasDetected, accent),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.only(bottom: 24),
@@ -137,7 +174,6 @@ class _HomeScreenState extends State<HomeScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Connection indicator
                 Row(
                   children: [
                     Container(
@@ -181,18 +217,17 @@ class _HomeScreenState extends State<HomeScreen> {
                       style: TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.bold,
-                        color: systemOn ? kGreen : Colors.red,
+                        color: systemOn ? accent : Colors.red,
                       ),
                     ),
                   ],
                 ),
                 const SizedBox(height: 20),
 
-                _quickStats(isDark, textColor, subColor),
+                _quickStats(isDark, textColor, subColor, accent),
 
                 const SizedBox(height: 24),
 
-                // 2×2 control grid
                 Row(
                   children: [
                     Expanded(
@@ -207,7 +242,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       child: ControlButton(
                         label: 'Gas Sensor',
                         isOn: _status['gasSensor'] as bool,
-                        enabled: systemOn,
+                        enabled: systemOn || !_isConnected,
                         onTap: () => _toggle('gasSensor'),
                       ),
                     ),
@@ -220,7 +255,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       child: ControlButton(
                         label: 'Temperature',
                         isOn: _status['tempSensor'] as bool,
-                        enabled: systemOn,
+                        enabled: systemOn || !_isConnected,
                         onTap: () => _toggle('tempSensor'),
                       ),
                     ),
@@ -229,8 +264,31 @@ class _HomeScreenState extends State<HomeScreen> {
                       child: ControlButton(
                         label: 'LEDs',
                         isOn: _status['ledSensor'] as bool,
-                        enabled: systemOn,
+                        enabled: systemOn || !_isConnected,
                         onTap: () => _toggle('ledSensor'),
+                      ),
+                    ),
+                  ],
+                ),
+
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _powerSaveButton(
+                        'Eco Mode',
+                        Icons.eco,
+                        kPowerSaveEco,
+                        Colors.teal,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _powerSaveButton(
+                        'Deep Save',
+                        Icons.power_settings_new,
+                        kPowerSaveDeep,
+                        Colors.orange,
                       ),
                     ),
                   ],
@@ -269,17 +327,64 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  bool _motionDetected(Map<String, dynamic> data) {
-    return data['motionDetected'] == true ||
-        data['pirDetected'] == true ||
-        data['motion'] == true;
+  bool get _hasDeviceConnection => ConnectionService.isConnected;
+
+  void _showNoConnectionMessage() {
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        const SnackBar(
+          content: Text(
+            'No action was taken because the system is not connected to the devices.',
+          ),
+        ),
+      );
   }
 
-  Widget _quickStats(bool isDark, Color textColor, Color subColor) {
+  Widget _powerSaveButton(
+    String label,
+    IconData icon,
+    Map<String, bool> preset,
+    Color color,
+  ) {
+    return GestureDetector(
+      onTap: () => _applyPowerSave(preset),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: color.withValues(alpha: 0.4)),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, color: color, size: 18),
+            const SizedBox(width: 8),
+            Text(
+              label,
+              style: TextStyle(
+                color: color,
+                fontWeight: FontWeight.w600,
+                fontSize: 13,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _quickStats(
+    bool isDark,
+    Color textColor,
+    Color subColor,
+    Color accent,
+  ) {
     final temperature = _status['temperature'] ?? 0;
     final humidity = _status['humidity'] ?? 0;
     final gasDetected = _status['gasDetected'] == true;
-    final motionDetected = _motionDetected(_status);
+    final motionDetected = isMotionDetected(_status);
 
     return Column(
       children: [
@@ -318,7 +423,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 'Gas',
                 gasDetected ? 'Alert' : 'Normal',
                 Icons.local_fire_department_outlined,
-                gasDetected ? Colors.red : kGreen,
+                gasDetected ? Colors.red : accent,
                 isDark,
                 textColor,
                 subColor,
@@ -330,7 +435,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 'Motion',
                 motionDetected ? 'Detected' : 'Clear',
                 Icons.directions_run,
-                motionDetected ? Colors.orange : kGreen,
+                motionDetected ? Colors.orange : accent,
                 isDark,
                 textColor,
                 subColor,
@@ -401,7 +506,7 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  AppBar _buildAppBar(bool isDark, bool gasDetected) {
+  AppBar _buildAppBar(bool isDark, bool gasDetected, Color accent) {
     return AppBar(
       backgroundColor: isDark ? kAppBarDark : Colors.white,
       elevation: 0,
@@ -467,7 +572,7 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Drawer _buildDrawer(bool isDark) {
+  Drawer _buildDrawer(BuildContext context, bool isDark, Color accent) {
     final textColor = isDark ? Colors.white : kTextPrimary;
     return Drawer(
       backgroundColor: isDark ? kBgDarkSurface : Colors.white,
@@ -486,11 +591,11 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ),
               const SizedBox(height: 30),
-              _drawerItem(Icons.home, 'Home Page', () {
+              _drawerItem(Icons.home, 'Home Page', accent, () {
                 Navigator.pop(context);
               }),
               const SizedBox(height: 16),
-              _drawerItem(Icons.settings_outlined, 'Settings', () {
+              _drawerItem(Icons.settings_outlined, 'Settings', accent, () {
                 Navigator.pop(context);
                 Navigator.push(
                   context,
@@ -498,7 +603,15 @@ class _HomeScreenState extends State<HomeScreen> {
                 );
               }),
               const SizedBox(height: 16),
-              _drawerItem(Icons.swap_horiz, 'Switch Acc.', () {
+              _drawerItem(Icons.schedule, 'Automation', accent, () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const AutomationScreen()),
+                );
+              }),
+              const SizedBox(height: 16),
+              _drawerItem(Icons.swap_horiz, 'Switch Acc.', accent, () {
                 Navigator.pop(context);
                 Navigator.pushReplacement(
                   context,
@@ -506,7 +619,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 );
               }),
               const SizedBox(height: 16),
-              _drawerItem(Icons.logout, 'Log out', () {
+              _drawerItem(Icons.logout, 'Log out', accent, () {
                 Navigator.pop(context);
                 Navigator.pushReplacement(
                   context,
@@ -520,13 +633,26 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _drawerItem(IconData icon, String label, VoidCallback onTap) {
+  Widget _drawerItem(
+    IconData icon,
+    String label,
+    Color accent,
+    VoidCallback onTap,
+  ) {
+    final hsl = HSLColor.fromColor(accent);
+    final light = hsl
+        .withLightness((hsl.lightness + 0.1).clamp(0.0, 1.0))
+        .toColor();
+    final dark = hsl
+        .withLightness((hsl.lightness - 0.1).clamp(0.0, 1.0))
+        .toColor();
+
     return GestureDetector(
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         decoration: BoxDecoration(
-          gradient: const LinearGradient(colors: [kGreenLight, kGreenDark]),
+          gradient: LinearGradient(colors: [light, dark]),
           borderRadius: BorderRadius.circular(30),
         ),
         child: Row(
