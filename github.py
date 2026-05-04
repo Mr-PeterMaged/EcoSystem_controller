@@ -1,96 +1,151 @@
 from __future__ import annotations
 
 import argparse
-from pathlib import Path
+import shutil
+import subprocess
 import sys
+from pathlib import Path
 
-from git_utils import (
-    DEFAULT_BRANCH,
-    DEFAULT_REMOTE,
-    REMOTE_FILE,
-    GitError,
-    GitRunner,
-    commit_if_needed,
-    configure_remote,
-    ensure_git_available,
-    init_repository,
-    pull_branch,
-    push_branch,
-    remote_branch_exists,
-    rename_current_branch,
-    resolve_repo_url,
-    save_repo_url,
-)
+
+PROJECT_ROOT = Path(__file__).resolve().parent
+APK_REPO_URL = "https://github.com/Mr-PeterMaged/EcoSystem_controller_APK.git"
+APK_REPO_DIR = PROJECT_ROOT / ".apk_release_repo"
+DEFAULT_BRANCH = "main"
+
+
+class GitHubSetupError(RuntimeError):
+    pass
+
+
+def run_git(
+    args: list[str],
+    *,
+    cwd: Path = PROJECT_ROOT,
+    check: bool = True,
+    capture_output: bool = False,
+) -> subprocess.CompletedProcess[str]:
+    command = ["git", *args]
+    print(f"$ {subprocess.list2cmdline(command)}")
+    try:
+        return subprocess.run(
+            command,
+            cwd=cwd,
+            check=check,
+            text=True,
+            capture_output=capture_output,
+            encoding="utf-8",
+            errors="replace",
+        )
+    except FileNotFoundError as exc:
+        raise GitHubSetupError("Git is not installed or is not available in PATH.") from exc
+    except subprocess.CalledProcessError as exc:
+        detail = (exc.stderr or exc.stdout or "").strip()
+        if detail:
+            detail = f"\n{detail}"
+        raise GitHubSetupError(
+            f"Git command failed: {subprocess.list2cmdline(command)}{detail}"
+        ) from exc
+
+
+def ensure_git_available() -> None:
+    if shutil.which("git") is None:
+        raise GitHubSetupError("Git is not installed or is not available in PATH.")
+
+
+def remote_branch_exists(repo_dir: Path, branch: str) -> bool:
+    result = run_git(
+        ["ls-remote", "--exit-code", "--heads", "origin", branch],
+        cwd=repo_dir,
+        check=False,
+        capture_output=True,
+    )
+    if result.returncode == 0:
+        return True
+    if result.returncode == 2:
+        return False
+    raise GitHubSetupError("Could not check the APK repository remote branch.")
+
+
+def ensure_branch(repo_dir: Path, branch: str) -> None:
+    if remote_branch_exists(repo_dir, branch):
+        run_git(["fetch", "origin", branch], cwd=repo_dir)
+        run_git(["checkout", "-B", branch, f"origin/{branch}"], cwd=repo_dir)
+    else:
+        run_git(["checkout", "-B", branch], cwd=repo_dir)
+
+
+def ensure_apk_repo(
+    *,
+    repo_url: str = APK_REPO_URL,
+    repo_dir: Path = APK_REPO_DIR,
+    branch: str = DEFAULT_BRANCH,
+) -> Path:
+    ensure_git_available()
+
+    if repo_dir.exists() and not (repo_dir / ".git").exists():
+        if any(repo_dir.iterdir()):
+            raise GitHubSetupError(
+                f"{repo_dir} exists but is not a Git repository. "
+                "Move it or delete it, then run github.py again."
+            )
+        repo_dir.rmdir()
+
+    if not repo_dir.exists():
+        run_git(["clone", repo_url, str(repo_dir)], cwd=PROJECT_ROOT)
+    else:
+        current = run_git(
+            ["remote", "get-url", "origin"],
+            cwd=repo_dir,
+            check=False,
+            capture_output=True,
+        )
+        if current.returncode != 0:
+            run_git(["remote", "add", "origin", repo_url], cwd=repo_dir)
+        elif current.stdout.strip() != repo_url:
+            run_git(["remote", "set-url", "origin", repo_url], cwd=repo_dir)
+
+    ensure_branch(repo_dir, branch)
+    return repo_dir
 
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="Initialize this folder as a Git repository and push it to GitHub."
+        description="Prepare the public APK-only GitHub repository."
     )
     parser.add_argument(
-        "repo_url",
-        nargs="?",
-        help="GitHub repository URL. If omitted, repo_url.txt is used or you are prompted.",
+        "--repo-url",
+        default=APK_REPO_URL,
+        help=f"APK-only repository URL. Default: {APK_REPO_URL}",
     )
     parser.add_argument(
-        "-m",
-        "--message",
-        default="Update project files",
-        help="Commit message for local changes.",
+        "--repo-dir",
+        default=str(APK_REPO_DIR),
+        help=f"Local APK repository folder. Default: {APK_REPO_DIR}",
     )
     parser.add_argument(
-        "-b",
         "--branch",
         default=DEFAULT_BRANCH,
-        help=f"Branch to push. Default: {DEFAULT_BRANCH}.",
-    )
-    parser.add_argument(
-        "-r",
-        "--remote",
-        default=DEFAULT_REMOTE,
-        help=f"Remote name. Default: {DEFAULT_REMOTE}.",
-    )
-    parser.add_argument(
-        "--repo-file",
-        default=str(REMOTE_FILE),
-        help="File used to remember the repository URL.",
-    )
-    parser.add_argument(
-        "--skip-pull",
-        action="store_true",
-        help="Skip pulling the remote branch before pushing.",
+        help=f"APK repository branch. Default: {DEFAULT_BRANCH}",
     )
     return parser
 
 
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
-    runner = GitRunner()
-    repo_file = Path(args.repo_file)
-
+    repo_dir = Path(args.repo_dir)
+    if not repo_dir.is_absolute():
+        repo_dir = PROJECT_ROOT / repo_dir
     try:
-        ensure_git_available()
-        repo_url = resolve_repo_url(args.repo_url, repo_file)
-        save_repo_url(repo_url, repo_file)
-
-        init_repository(runner)
-        rename_current_branch(runner, args.branch)
-        commit_if_needed(runner, args.message)
-        configure_remote(runner, repo_url, remote=args.remote)
-
-        if args.skip_pull:
-            print("Skipping remote pull.")
-        elif remote_branch_exists(runner, remote=args.remote, branch=args.branch):
-            pull_branch(runner, remote=args.remote, branch=args.branch)
-        else:
-            print(f"Remote branch '{args.remote}/{args.branch}' does not exist yet.")
-
-        commit_if_needed(runner, args.message)
-        push_branch(runner, remote=args.remote, branch=args.branch)
-    except GitError as exc:
+        repo_dir = ensure_apk_repo(
+            repo_url=args.repo_url,
+            repo_dir=repo_dir,
+            branch=args.branch,
+        )
+    except GitHubSetupError as exc:
         print(f"Error: {exc}", file=sys.stderr)
         return 1
 
+    print(f"APK repository is ready: {repo_dir}")
     return 0
 
 

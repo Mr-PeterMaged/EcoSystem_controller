@@ -7,10 +7,14 @@ Run from the project root:
 The script:
 - includes the selected logo in Android resources,
 - points the APK launcher icon to that logo,
+- sets the Android app label to EcoSystem Controller,
+- builds with an auto-incremented version number,
 - cleans stale Flutter build cache,
 - runs `flutter pub get`,
 - runs `flutter build apk --release`,
-- copies the APK to `apk_builds/`,
+- copies a versioned APK to `apk_builds/`,
+- runs `upload.py` to publish the latest APK only,
+- pushes source-code changes to the configured source repository,
 - shows a progress bar with elapsed time and estimated remaining time.
 """
 
@@ -25,12 +29,16 @@ import subprocess
 import sys
 import threading
 import time
+from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 
 
 PROJECT_ROOT = Path(__file__).resolve().parent
+APP_DISPLAY_NAME = "EcoSystem Controller"
+APP_FILE_PREFIX = "EcoSystem_Controller"
 DEFAULT_LOGO = PROJECT_ROOT / "Logo" / "dark_mode.png"
+PUBSPEC_FILE = PROJECT_ROOT / "pubspec.yaml"
 ANDROID_MANIFEST = (
     PROJECT_ROOT / "android" / "app" / "src" / "main" / "AndroidManifest.xml"
 )
@@ -40,6 +48,25 @@ ANDROID_GRADLE_WRAPPER = PROJECT_ROOT / "android" / "gradlew.bat"
 DEFAULT_OUTPUT_DIR = PROJECT_ROOT / "apk_builds"
 LOCAL_BUILD_CACHE = PROJECT_ROOT / ".build_cache"
 MAX_GRADLE_REPAIR_ATTEMPTS = 8
+SOURCE_REMOTE = "origin"
+DEFAULT_SOURCE_BRANCH = "main"
+
+
+@dataclass(frozen=True)
+class AppVersion:
+    name: str
+    build_number: int
+
+    @property
+    def full(self) -> str:
+        return f"{self.name}+{self.build_number}"
+
+    @property
+    def file_label(self) -> str:
+        return f"v{self.name}_build_{self.build_number}"
+
+    def bumped(self) -> "AppVersion":
+        return AppVersion(self.name, self.build_number + 1)
 
 
 class BuildError(RuntimeError):
@@ -129,6 +156,39 @@ def format_time(seconds: float) -> str:
     return f"{minutes:02d}:{sec:02d}"
 
 
+def read_pubspec_version() -> AppVersion:
+    if not PUBSPEC_FILE.exists():
+        raise BuildError(f"pubspec.yaml not found: {PUBSPEC_FILE}")
+
+    content = PUBSPEC_FILE.read_text(encoding="utf-8")
+    match = re.search(
+        r"(?m)^version:\s*([0-9]+\.[0-9]+\.[0-9]+)\+([0-9]+)\s*$",
+        content,
+    )
+    if not match:
+        raise BuildError("Could not find a valid `version: x.y.z+n` in pubspec.yaml")
+
+    return AppVersion(match.group(1), int(match.group(2)))
+
+
+def write_pubspec_version(version: AppVersion) -> None:
+    content = PUBSPEC_FILE.read_text(encoding="utf-8")
+    updated, replacements = re.subn(
+        r"(?m)^version:\s*[0-9]+\.[0-9]+\.[0-9]+\+[0-9]+\s*$",
+        f"version: {version.full}",
+        content,
+        count=1,
+    )
+    if replacements != 1:
+        raise BuildError("Could not update version in pubspec.yaml")
+
+    PUBSPEC_FILE.write_text(updated, encoding="utf-8")
+
+
+def versioned_apk_name(version: AppVersion) -> str:
+    return f"{APP_FILE_PREFIX}_{version.file_label}.apk"
+
+
 def resolve_flutter_command(flutter_arg: str | None = None) -> list[str]:
     flutter_path = flutter_arg or shutil.which("flutter")
     if flutter_path is None:
@@ -172,6 +232,21 @@ def ensure_logo_in_apk(logo_path: Path) -> None:
         )
     if replacements == 0:
         raise BuildError("Could not find <application> in AndroidManifest.xml")
+    updated, replacements = re.subn(
+        r'android:label="[^"]*"',
+        f'android:label="{APP_DISPLAY_NAME}"',
+        updated,
+        count=1,
+    )
+    if replacements == 0:
+        updated, replacements = re.subn(
+            r"(<application\b)",
+            rf'\1 android:label="{APP_DISPLAY_NAME}"',
+            updated,
+            count=1,
+        )
+    if replacements == 0:
+        raise BuildError("Could not set android:label in AndroidManifest.xml")
     ANDROID_MANIFEST.write_text(updated, encoding="utf-8")
 
 
@@ -254,8 +329,12 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--name",
-        default="smart_home_self_powered.apk",
-        help="Final APK file name.",
+        help="Final APK file name. Default: EcoSystem_Controller_vX.Y.Z_build_N.apk",
+    )
+    parser.add_argument(
+        "--no-version-bump",
+        action="store_true",
+        help="Use the current pubspec.yaml version instead of incrementing the build number.",
     )
     parser.add_argument(
         "--skip-pub-get",
@@ -288,6 +367,15 @@ def parse_args() -> argparse.Namespace:
         "--skip-upload",
         action="store_true",
         help="Do not run upload.py after a successful build.",
+    )
+    parser.add_argument(
+        "--skip-source-upload",
+        action="store_true",
+        help="Do not commit and push source-code changes after upload.py finishes.",
+    )
+    parser.add_argument(
+        "--source-message",
+        help="Commit message used when pushing source-code changes.",
     )
     return parser.parse_args()
 
@@ -417,17 +505,36 @@ def repair_gradle_transform_moves(log_file: Path) -> int:
     if not log_file.exists():
         return 0
 
-    pattern = re.compile(
+    move_pattern = re.compile(
         r"Could not move temporary workspace \(([^)]+)\) "
         r"to immutable location \(([^)]+)\)"
     )
-    matches = pattern.findall(log_file.read_text(encoding="utf-8", errors="replace"))
+    metadata_pattern = re.compile(
+        r"Could not read workspace metadata from ([^\r\n]+?metadata\.bin)"
+    )
+    log_text = log_file.read_text(encoding="utf-8", errors="replace")
+    move_matches = move_pattern.findall(log_text)
+    metadata_matches = metadata_pattern.findall(log_text)
     repaired = 0
     seen: set[tuple[str, str]] = set()
+    seen_metadata: set[str] = set()
     gradle_cache = LOCAL_BUILD_CACHE / "gradle"
 
     with log_file.open("a", encoding="utf-8", errors="replace") as log:
-        for temporary_raw, target_raw in matches:
+        for metadata_raw in metadata_matches:
+            if metadata_raw in seen_metadata:
+                continue
+            seen_metadata.add(metadata_raw)
+
+            metadata_file = Path(metadata_raw.strip())
+            workspace = metadata_file.parent
+            assert_path_inside(workspace, gradle_cache, "repair")
+            if workspace.exists():
+                safe_rmtree(workspace, gradle_cache)
+                log.write(f"Removed corrupt Gradle workspace: {workspace}\n")
+                repaired += 1
+
+        for temporary_raw, target_raw in move_matches:
             key = (temporary_raw, target_raw)
             if key in seen:
                 continue
@@ -505,7 +612,7 @@ def describe_disk_space(path: Path) -> str:
     return f"{free_gb:.1f} GB free / {total_gb:.1f} GB total"
 
 
-def _run_upload() -> None:
+def _run_legacy_upload() -> None:
     upload_py = PROJECT_ROOT / "upload.py"
     if not upload_py.exists():
         print("upload.py not found — skipping upload step.")
@@ -520,8 +627,116 @@ def _run_upload() -> None:
     )
 
 
+def run_plain_command(
+    command: list[str],
+    *,
+    cwd: Path = PROJECT_ROOT,
+    check: bool = True,
+    capture_output: bool = False,
+) -> subprocess.CompletedProcess[str]:
+    print(f"$ {subprocess.list2cmdline(command)}")
+    try:
+        return subprocess.run(
+            command,
+            cwd=cwd,
+            check=check,
+            text=True,
+            capture_output=capture_output,
+            encoding="utf-8",
+            errors="replace",
+        )
+    except FileNotFoundError as exc:
+        raise BuildError(f"Command not found: {command[0]}") from exc
+    except subprocess.CalledProcessError as exc:
+        detail = (exc.stderr or exc.stdout or "").strip()
+        if detail:
+            detail = f"\n{detail}"
+        raise BuildError(
+            f"Command failed: {subprocess.list2cmdline(command)}{detail}"
+        ) from exc
+
+
+def current_git_branch() -> str:
+    result = run_plain_command(
+        ["git", "branch", "--show-current"],
+        check=False,
+        capture_output=True,
+    )
+    branch = result.stdout.strip()
+    return branch or DEFAULT_SOURCE_BRANCH
+
+
+def has_staged_source_changes() -> bool:
+    result = run_plain_command(
+        ["git", "diff", "--cached", "--quiet"],
+        check=False,
+    )
+    if result.returncode == 0:
+        return False
+    if result.returncode == 1:
+        return True
+    raise BuildError("Could not inspect staged source changes.")
+
+
+def _run_upload(apk_path: Path, version: AppVersion) -> None:
+    upload_py = PROJECT_ROOT / "upload.py"
+    if not upload_py.exists():
+        print("upload.py not found - skipping APK upload step.")
+        return
+
+    print("\n" + "-" * 50)
+    print("Running upload.py ...")
+    print("-" * 50)
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(upload_py),
+            "--apk",
+            str(apk_path),
+            "--version",
+            version.full,
+        ],
+        cwd=PROJECT_ROOT,
+        check=False,
+    )
+    if result.returncode != 0:
+        raise BuildError(f"upload.py failed with exit code {result.returncode}")
+
+
+def _upload_source_changes(version: AppVersion, message: str | None) -> None:
+    if not (PROJECT_ROOT / ".git").exists():
+        print("This folder is not a Git repository - skipping source upload.")
+        return
+
+    commit_message = message or f"Build {APP_DISPLAY_NAME} {version.full}"
+    branch = current_git_branch()
+
+    print("\n" + "-" * 50)
+    print("Uploading source-code changes ...")
+    print("-" * 50)
+
+    run_plain_command(["git", "add", "--all"])
+    if has_staged_source_changes():
+        run_plain_command(["git", "commit", "-m", commit_message])
+    else:
+        print("No source-code changes to commit.")
+
+    remote_check = run_plain_command(
+        ["git", "remote", "get-url", SOURCE_REMOTE],
+        check=False,
+        capture_output=True,
+    )
+    if remote_check.returncode != 0:
+        raise BuildError(f"Git remote '{SOURCE_REMOTE}' is not configured.")
+
+    run_plain_command(["git", "push", "-u", SOURCE_REMOTE, branch])
+
+
 def main() -> int:
     args = parse_args()
+    current_version = read_pubspec_version()
+    build_version = current_version if args.no_version_bump else current_version.bumped()
+    output_name = args.name or versioned_apk_name(build_version)
     output_dir = Path(args.output_dir)
     if not output_dir.is_absolute():
         output_dir = PROJECT_ROOT / output_dir
@@ -552,6 +767,8 @@ def main() -> int:
         print(f"Project: {PROJECT_ROOT}")
         print(f"Log file: {log_file}")
         print(f"Flutter: {' '.join(flutter_command)}")
+        print(f"App name: {APP_DISPLAY_NAME}")
+        print(f"Build version: {build_version.full}")
         print(f"Target platform: {args.target_platform}")
         if args.system_cache:
             print("Cache: system default")
@@ -598,6 +815,8 @@ def main() -> int:
             "apk",
             f"--{args.mode}",
             f"--target-platform={args.target_platform}",
+            f"--build-name={build_version.name}",
+            f"--build-number={build_version.build_number}",
         ]
 
         run_build_with_gradle_repair(
@@ -610,8 +829,11 @@ def main() -> int:
             command_env,
         )
 
+        if not args.no_version_bump:
+            write_pubspec_version(build_version)
+
         progress.begin_step("Copying APK to project folder", 5, 5)
-        apk_path = copy_final_apk(args.mode, output_dir, args.name)
+        apk_path = copy_final_apk(args.mode, output_dir, output_name)
         progress.complete_step()
         progress.stop(success=True)
 
@@ -621,7 +843,10 @@ def main() -> int:
         print(f"Build log: {log_file}")
 
         if not args.skip_upload:
-            _run_upload()
+            _run_upload(apk_path, build_version)
+
+        if not args.skip_source_upload:
+            _upload_source_changes(build_version, args.source_message)
 
         return 0
     except KeyboardInterrupt:
