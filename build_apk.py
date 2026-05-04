@@ -284,6 +284,11 @@ def parse_args() -> argparse.Namespace:
             "Use android-arm,android-arm64,android-x64 for a universal APK."
         ),
     )
+    parser.add_argument(
+        "--skip-upload",
+        action="store_true",
+        help="Do not run upload.py after a successful build.",
+    )
     return parser.parse_args()
 
 
@@ -500,6 +505,21 @@ def describe_disk_space(path: Path) -> str:
     return f"{free_gb:.1f} GB free / {total_gb:.1f} GB total"
 
 
+def _run_upload() -> None:
+    upload_py = PROJECT_ROOT / "upload.py"
+    if not upload_py.exists():
+        print("upload.py not found — skipping upload step.")
+        return
+    print(f"\n{'─' * 50}")
+    print("Running upload.py ...")
+    print(f"{'─' * 50}")
+    subprocess.run(
+        [sys.executable, str(upload_py)],
+        cwd=PROJECT_ROOT,
+        check=False,
+    )
+
+
 def main() -> int:
     args = parse_args()
     output_dir = Path(args.output_dir)
@@ -599,6 +619,10 @@ def main() -> int:
         print(f"APK saved to: {apk_path}")
         print(f"APK size: {size_mb:.2f} MB")
         print(f"Build log: {log_file}")
+
+        if not args.skip_upload:
+            _run_upload()
+
         return 0
     except KeyboardInterrupt:
         progress.stop(success=False)

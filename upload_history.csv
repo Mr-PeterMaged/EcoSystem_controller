@@ -75,3 +75,7 @@
 20260504134936-2e1786e7,2026-05-04T13:49:36+03:00,2026-05-04,13:49:36,Egypt Daylight Time,+0300,main,origin,Update project files,false,27,2536,195,lib/widgets/control_button.dart,,modified,M,4,3,false,upload.py
 20260504134936-2e1786e7,2026-05-04T13:49:36+03:00,2026-05-04,13:49:36,Egypt Daylight Time,+0300,main,origin,Update project files,false,27,2536,195,lib/widgets/green_button.dart,,modified,M,24,11,false,upload.py
 20260504134936-2e1786e7,2026-05-04T13:49:36+03:00,2026-05-04,13:49:36,Egypt Daylight Time,+0300,main,origin,Update project files,false,27,2536,195,test/widget_test.dart,,modified,M,10,9,false,upload.py
+20260504150453-0638214e,2026-05-04T15:04:53+03:00,2026-05-04,15:04:53,Egypt Daylight Time,+0300,main,origin,Update project files,false,4,43,9,android/app/src/main/AndroidManifest.xml,,modified,M,6,0,false,upload.py
+20260504150453-0638214e,2026-05-04T15:04:53+03:00,2026-05-04,15:04:53,Egypt Daylight Time,+0300,main,origin,Update project files,false,4,43,9,apk_builds/smart_home_self_powered.apk,,modified,M,,,true,upload.py
+20260504150453-0638214e,2026-05-04T15:04:53+03:00,2026-05-04,15:04:53,Egypt Daylight Time,+0300,main,origin,Update project files,false,4,43,9,build_apk.py,,modified,M,24,0,false,upload.py
+20260504150453-0638214e,2026-05-04T15:04:53+03:00,2026-05-04,15:04:53,Egypt Daylight Time,+0300,main,origin,Update project files,false,4,43,9,lib/main.dart,,modified,M,13,9,false,upload.py

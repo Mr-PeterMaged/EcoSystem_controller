@@ -9,15 +9,19 @@ import 'app_constants.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await AppSettingsService.init();
-  await UserStorageService.init();
-  final settings = AppSettingsService.settings;
-  themeNotifier.value = ThemeState(
-    mode: settings.themeMode,
-    accentColor: Color(settings.accentColorValue),
-  );
-  await NotificationService.init();
-  AutomationService.start();
+  try {
+    await AppSettingsService.init();
+    await UserStorageService.init();
+    final settings = AppSettingsService.settings;
+    themeNotifier.value = ThemeState(
+      mode: settings.themeMode,
+      accentColor: Color(settings.accentColorValue),
+    );
+    await NotificationService.init();
+    AutomationService.start();
+  } catch (_) {
+    // Ensure runApp() is always reached even if initialization partially fails.
+  }
   runApp(const SmartHomeApp());
 }
 
