@@ -48,31 +48,29 @@ This application allows users to sign in, view the current system status, contro
 
 ## Screenshots
 
-The following screenshots are stored in the `mobile_app/` folder.
-
 ### Login
 
-![Login Screen](mobile_app/login_page.png)
+![Login Screen](mockup/output/login_page_phone_mockup.png)
 
 ### Dashboard
 
-![Dashboard Screen](mobile_app/welcome_admin.png)
+![Dashboard Screen](mockup/output/welcome_admin_phone_mockup.png)
 
 ### Control Panel
 
-![Control Screen](mobile_app/full_control.png)
+![Control Screen](mockup/output/full_control_phone_mockup.png)
 
 ### Statistics
 
-![Statistics Screen](mobile_app/system_stats.png)
+![Statistics Screen](mockup/output/system_stats_phone_mockup.png)
 
 ### Notifications
 
-![Notifications Screen](mobile_app/norifications.png)
+![Notifications Screen](mockup/output/norifications_phone_mockup.png)
 
 ### Settings
 
-![Settings Screen](mobile_app/display.png)
+![Settings Screen](mockup/output/display_phone_mockup.png)
 
 ## Tech Stack
 

@@ -97,7 +97,6 @@ def write_release_readme(repo_dir: Path, public_apk_name: str, version: str) -> 
         ),
         encoding="utf-8",
     )
-
     (repo_dir / "VERSION.txt").write_text(f"{version_text}\n", encoding="utf-8")
 
 
@@ -138,6 +137,24 @@ def upload_latest_apk(
     return destination
 
 
+def run_release_publish(apk_path: Path, version: str) -> None:
+    apk_git_py = PROJECT_ROOT / "APK_GIT.py"
+    if not apk_git_py.exists():
+        print("APK_GIT.py not found - skipping GitHub Release step.")
+        return
+
+    command = [sys.executable, str(apk_git_py), "--apk", str(apk_path)]
+    if version:
+        command.extend(["--version", version])
+
+    print("\n" + "-" * 50)
+    print("Publishing to GitHub Releases ...")
+    print("-" * 50)
+    result = subprocess.run(command, cwd=PROJECT_ROOT, check=False)
+    if result.returncode != 0:
+        raise UploadError(f"APK_GIT.py failed with exit code {result.returncode}")
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description="Upload only the latest APK to the public APK repository."
@@ -161,6 +178,11 @@ def build_parser() -> argparse.ArgumentParser:
         default=DEFAULT_BRANCH,
         help=f"APK repository branch. Default: {DEFAULT_BRANCH}",
     )
+    parser.add_argument(
+        "--skip-release",
+        action="store_true",
+        help="Upload the APK file only and skip GitHub Releases/QR generation.",
+    )
     return parser
 
 
@@ -174,12 +196,15 @@ def main(argv: list[str] | None = None) -> int:
             public_name=args.public_name,
             branch=args.branch,
         )
+        print(f"Uploaded latest APK to: {uploaded_path}")
+        print(f"Public APK repository: {APK_REPO_DIR}")
+
+        if not args.skip_release:
+            run_release_publish(apk_path, args.version)
     except (UploadError, GitHubSetupError) as exc:
         print(f"Error: {exc}", file=sys.stderr)
         return 1
 
-    print(f"Uploaded latest APK to: {uploaded_path}")
-    print(f"Public APK repository: {APK_REPO_DIR}")
     return 0
 
 

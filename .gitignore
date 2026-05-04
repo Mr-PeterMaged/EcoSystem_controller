@@ -12,6 +12,9 @@
 .swiftpm/
 migrate_working_dir/
 __pycache__/
+.python_deps/
+.pip_cache/
+.runtime_tmp/
 
 # Project build and release automation
 .build_cache/
@@ -19,6 +22,9 @@ __pycache__/
 apk_builds/
 build_logs/
 upload_history.csv
+
+# Local secrets — never commit
+secrets.env
 
 # IntelliJ / Android Studio
 *.iml
