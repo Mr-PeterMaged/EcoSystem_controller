@@ -464,7 +464,14 @@ def _draw_status_bar(canvas: Image.Image) -> Image.Image:
         except Exception:
             pass
     if font is None:
-        font = ImageFont.load_default()
+        try:
+            font = ImageFont.load_default(size=font_size)   # Pillow >= 10
+        except TypeError:
+            font = ImageFont.load_default()                 # Pillow < 10 (tiny bitmap)
+        print(
+            "WARNING: No TrueType font found for status bar. "
+            "Install Segoe UI (Windows) or DejaVu Sans (Linux) for readable text."
+        )
 
     # ── Left: time ────────────────────────────────────────────────────────────
     tx = SCR_X + 30

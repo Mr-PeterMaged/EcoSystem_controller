@@ -247,6 +247,7 @@ def publish_release(
 
     release = get_or_create_release(release_tag, github_token)
     qr_asset_name = qr_path.name
+    # Delete both the old APK and old QR in one pass before uploading anything.
     delete_matching_assets(release, github_token, {apk.name, qr_asset_name})
 
     download_url = upload_release_asset(release, apk, github_token)
@@ -254,9 +255,8 @@ def publish_release(
     save_qr_code(download_url, qr_path)
 
     if upload_qr_asset:
-        fresh_release = get_or_create_release(release_tag, github_token)
-        delete_matching_assets(fresh_release, github_token, {qr_asset_name})
-        upload_release_asset(fresh_release, qr_path, github_token)
+        # QR was already removed above; upload the freshly generated image directly.
+        upload_release_asset(release, qr_path, github_token)
 
     print(f"Direct download URL: {download_url}")
     return download_url

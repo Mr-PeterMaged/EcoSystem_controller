@@ -1,10 +1,11 @@
 from __future__ import annotations
 
 import argparse
-import shutil
 import subprocess
 import sys
 from pathlib import Path
+
+from git_utils import GitError, ensure_git_available
 
 
 PROJECT_ROOT = Path(__file__).resolve().parent
@@ -13,8 +14,8 @@ APK_REPO_DIR = PROJECT_ROOT / ".apk_release_repo"
 DEFAULT_BRANCH = "main"
 
 
-class GitHubSetupError(RuntimeError):
-    pass
+# Alias so callers (upload.py) can catch the same name regardless of source.
+GitHubSetupError = GitError
 
 
 def run_git(
@@ -46,10 +47,6 @@ def run_git(
             f"Git command failed: {subprocess.list2cmdline(command)}{detail}"
         ) from exc
 
-
-def ensure_git_available() -> None:
-    if shutil.which("git") is None:
-        raise GitHubSetupError("Git is not installed or is not available in PATH.")
 
 
 def remote_branch_exists(repo_dir: Path, branch: str) -> bool:

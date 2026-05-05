@@ -33,6 +33,12 @@ from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 
+if sys.platform != "win32":
+    raise SystemExit(
+        "build_apk.py requires Windows — it uses gradlew.bat, taskkill, and "
+        "Windows-specific path handling. Run this script on a Windows machine."
+    )
+
 
 PROJECT_ROOT = Path(__file__).resolve().parent
 APP_DISPLAY_NAME = "EcoSystem Controller"
