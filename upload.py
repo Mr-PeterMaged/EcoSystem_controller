@@ -10,13 +10,16 @@ from pathlib import Path
 from github import GitHubSetupError, ensure_apk_repo
 from github_repos import (
     APK_REPO_DIR,
+    APK_REPO_NAME,
     APP_DISPLAY_NAME,
     DEFAULT_BRANCH,
+    GITHUB_OWNER,
     PROJECT_ROOT,
 )
 
 
 APK_BUILDS_DIR = PROJECT_ROOT / "apk_builds"
+QR_FILENAME    = "download_qr.png"
 
 
 class UploadError(RuntimeError):
@@ -54,7 +57,6 @@ def run_git(
 
 
 def _apk_number(apk_path: Path) -> int:
-    """Extract the trailing number from EcoSystem_Controller_*_apk-N.apk, or -1."""
     import re
     match = re.search(r"-(\d+)\.apk$", apk_path.name)
     return int(match.group(1)) if match else -1
@@ -79,6 +81,36 @@ def resolve_apk(apk_arg: str | None) -> Path:
     return latest.resolve()
 
 
+def raw_url(filename: str, branch: str) -> str:
+    """Public raw download URL for a file in the APK repository."""
+    return (
+        f"https://raw.githubusercontent.com"
+        f"/{GITHUB_OWNER}/{APK_REPO_NAME}/{branch}/{filename}"
+    )
+
+
+def generate_qr(download_url: str, output_path: Path) -> None:
+    """Create a green QR code PNG pointing to download_url."""
+    try:
+        import qrcode
+    except ImportError as exc:
+        raise UploadError(
+            "qrcode is required. Run: pip install qrcode[pil]"
+        ) from exc
+
+    qr = qrcode.QRCode(
+        version=None,
+        error_correction=qrcode.constants.ERROR_CORRECT_M,
+        box_size=12,
+        border=4,
+    )
+    qr.add_data(download_url)
+    qr.make(fit=True)
+    image = qr.make_image(fill_color="#16A34A", back_color="white")
+    image.save(str(output_path))
+    print(f"QR code saved: {output_path.name}")
+
+
 def remove_old_public_apks(repo_dir: Path) -> None:
     for apk_path in repo_dir.rglob("*.apk"):
         if ".git" in apk_path.parts:
@@ -86,26 +118,43 @@ def remove_old_public_apks(repo_dir: Path) -> None:
         apk_path.unlink()
 
 
-def write_release_readme(repo_dir: Path, public_apk_name: str, version: str) -> None:
-    version_text = version or "latest"
-    readme = repo_dir / "README.md"
-    readme.write_text(
-        "\n".join(
-            [
-                f"# {APP_DISPLAY_NAME}",
-                "",
-                "Public APK download repository.",
-                "",
-                f"- Latest APK: `{public_apk_name}`",
-                f"- Version: `{version_text}`",
-                f"- Updated: `{datetime.now().astimezone().isoformat(timespec='seconds')}`",
-                "",
-                "This repository contains only the latest public APK build.",
-                "",
-            ]
-        ),
-        encoding="utf-8",
-    )
+def write_release_readme(
+    repo_dir: Path,
+    apk_name: str,
+    version: str,
+    branch: str,
+) -> None:
+    version_text  = version or "latest"
+    apk_url       = raw_url(apk_name, branch)
+    qr_url        = raw_url(QR_FILENAME, branch)
+    timestamp     = datetime.now().astimezone().isoformat(timespec="seconds")
+
+    content = "\n".join([
+        f"# {APP_DISPLAY_NAME}",
+        "",
+        "---",
+        "",
+        "## Scan and Download Now",
+        "",
+        f"<p align=\"center\">",
+        f"  <img src=\"{qr_url}\" alt=\"Scan to Download\" width=\"260\"/>",
+        f"</p>",
+        "",
+        f"<p align=\"center\">",
+        f"  <a href=\"{apk_url}\"><b>Direct Download</b></a>",
+        f"</p>",
+        "",
+        "---",
+        "",
+        f"- **Latest APK:** `{apk_name}`",
+        f"- **Version:** `{version_text}`",
+        f"- **Updated:** `{timestamp}`",
+        "",
+        "This repository contains only the latest public APK build.",
+        "",
+    ])
+
+    (repo_dir / "README.md").write_text(content, encoding="utf-8")
     (repo_dir / "VERSION.txt").write_text(f"{version_text}\n", encoding="utf-8")
 
 
@@ -124,15 +173,24 @@ def upload_latest_apk(
     version: str,
     branch: str,
 ) -> Path:
-    repo_dir = ensure_apk_repo(branch=branch)
-
-    # Keep the original filename (e.g. EcoSystem_Controller_release_apk-5.apk)
-    # so the version number is visible in the GitHub repository.
+    repo_dir    = ensure_apk_repo(branch=branch)
     destination = repo_dir / apk_path.name
 
+    # Remove old APKs and stale QR code
     remove_old_public_apks(repo_dir)
+    old_qr = repo_dir / QR_FILENAME
+    if old_qr.exists():
+        old_qr.unlink()
+
+    # Copy new APK
     shutil.copy2(apk_path, destination)
-    write_release_readme(repo_dir, apk_path.name, version)
+
+    # Generate QR code pointing to the raw GitHub download URL
+    apk_download_url = raw_url(apk_path.name, branch)
+    generate_qr(apk_download_url, repo_dir / QR_FILENAME)
+
+    # Write README with embedded QR image
+    write_release_readme(repo_dir, apk_path.name, version, branch)
 
     run_git(["add", "--all"], cwd=repo_dir)
     if has_staged_changes(repo_dir):
@@ -168,7 +226,10 @@ def run_release_publish(apk_path: Path, version: str) -> None:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="Upload the highest-numbered APK from apk_builds/ to the public GitHub repository."
+        description=(
+            "Upload the highest-numbered APK from apk_builds/ to the public GitHub "
+            "repository, generate a QR code, and embed it in README.md."
+        )
     )
     parser.add_argument(
         "--apk",
@@ -187,7 +248,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--with-release",
         action="store_true",
-        help="Also publish the APK to GitHub Releases and generate a QR code.",
+        help="Also publish the APK to GitHub Releases via APK_GIT.py.",
     )
     return parser
 
@@ -201,7 +262,10 @@ def main(argv: list[str] | None = None) -> int:
             version=args.version,
             branch=args.branch,
         )
+        apk_url = raw_url(uploaded_path.name, args.branch)
         print(f"Uploaded : {uploaded_path.name}")
+        print(f"QR code  : {raw_url(QR_FILENAME, args.branch)}")
+        print(f"Download : {apk_url}")
         print(f"Repo dir : {APK_REPO_DIR}")
 
         if args.with_release:
