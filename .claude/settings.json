@@ -5,7 +5,9 @@
       "Bash(del \"d:\\\\app1\\\\mockup\\\\output\\\\home_screen_mockup.png\")",
       "Bash(python make_phone_mockups.py --background dark --phone black)",
       "PowerShell(Get-ChildItem \"d:\\\\app1\\\\mobile_app\" | ForEach-Object { $_.Name }; Write-Host \"---mockup---\"; Get-ChildItem \"d:\\\\app1\\\\mockup\" | ForEach-Object { $_.Name })",
-      "PowerShell(python -c \"import ast; ast.parse\\(open\\('d:/app1/make_phone_mockups.py'\\).read\\(\\)\\); print\\('OK'\\)\")"
+      "PowerShell(python -c \"import ast; ast.parse\\(open\\('d:/app1/make_phone_mockups.py'\\).read\\(\\)\\); print\\('OK'\\)\")",
+      "Bash(python -c \"from upload_code import upload_source_code\")",
+      "Bash(pip install *)"
     ]
   }
 }
