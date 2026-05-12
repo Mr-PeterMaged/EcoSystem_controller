@@ -217,44 +217,93 @@ def resolve_flutter_command(flutter_arg: str | None = None) -> list[str]:
     return [flutter_path]
 
 
+def _generate_icons(logo_path: Path) -> None:
+    """Regenerate all mipmap icons with a black background and a larger logo."""
+    try:
+        from PIL import Image
+    except ImportError as exc:
+        raise BuildError(
+            "Pillow is required for icon generation. Run: pip install Pillow"
+        ) from exc
+
+    ANDROID_RES = PROJECT_ROOT / "android" / "app" / "src" / "main" / "res"
+    BG = (0, 0, 0, 255)
+
+    LEGACY: dict[str, int] = {
+        "mipmap-mdpi": 48, "mipmap-hdpi": 72, "mipmap-xhdpi": 96,
+        "mipmap-xxhdpi": 144, "mipmap-xxxhdpi": 192,
+    }
+    ADAPTIVE: dict[str, int] = {
+        "mipmap-mdpi": 108, "mipmap-hdpi": 162, "mipmap-xhdpi": 216,
+        "mipmap-xxhdpi": 324, "mipmap-xxxhdpi": 432,
+    }
+
+    def make(logo: "Image.Image", size: int, fill: float) -> "Image.Image":
+        canvas = Image.new("RGBA", (size, size), BG)
+        px = int(size * fill)
+        scaled = logo.resize((px, px), Image.LANCZOS)
+        off = (size - px) // 2
+        canvas.paste(scaled, (off, off), scaled)
+        return canvas.convert("RGB")
+
+    logo = Image.open(logo_path).convert("RGBA")
+
+    for folder, size in LEGACY.items():
+        icon = make(logo, size, 0.82)
+        dest = ANDROID_RES / folder
+        dest.mkdir(parents=True, exist_ok=True)
+        icon.save(str(dest / "ic_launcher.png"), "PNG")
+        icon.save(str(dest / "ic_launcher_round.png"), "PNG")
+
+    for folder, size in ADAPTIVE.items():
+        fg = make(logo, size, 0.78)
+        dest = ANDROID_RES / folder
+        dest.mkdir(parents=True, exist_ok=True)
+        fg.save(str(dest / "ic_launcher_foreground.png"), "PNG")
+
+    color_xml = (
+        '<?xml version="1.0" encoding="utf-8"?>\n'
+        "<resources>\n"
+        '    <color name="ic_launcher_background">#FF000000</color>\n'
+        "</resources>\n"
+    )
+    values = ANDROID_RES / "values"
+    values.mkdir(parents=True, exist_ok=True)
+    (values / "ic_launcher_background.xml").write_text(color_xml, encoding="utf-8")
+
+    adaptive_xml = (
+        '<?xml version="1.0" encoding="utf-8"?>\n'
+        '<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">\n'
+        '    <background android:drawable="@color/ic_launcher_background"/>\n'
+        '    <foreground android:drawable="@mipmap/ic_launcher_foreground"/>\n'
+        "</adaptive-icon>\n"
+    )
+    anydpi = ANDROID_RES / "mipmap-anydpi-v26"
+    anydpi.mkdir(parents=True, exist_ok=True)
+    (anydpi / "ic_launcher.xml").write_text(adaptive_xml, encoding="utf-8")
+    (anydpi / "ic_launcher_round.xml").write_text(adaptive_xml, encoding="utf-8")
+
+
 def ensure_logo_in_apk(logo_path: Path) -> None:
     if not logo_path.exists():
         raise BuildError(f"Logo file not found: {logo_path}")
     if not ANDROID_MANIFEST.exists():
         raise BuildError(f"AndroidManifest.xml not found: {ANDROID_MANIFEST}")
 
-    ANDROID_DRAWABLE_DIR.mkdir(parents=True, exist_ok=True)
-    shutil.copy2(logo_path, ANDROID_LOGO_RESOURCE)
+    _generate_icons(logo_path)
 
     manifest = ANDROID_MANIFEST.read_text(encoding="utf-8")
-    updated, replacements = re.subn(
-        r'android:icon="@[^"]+"',
-        'android:icon="@drawable/app_logo"',
-        manifest,
-        count=1,
-    )
-    if replacements == 0:
-        updated, replacements = re.subn(
-            r"(<application\b)",
-            r'\1 android:icon="@drawable/app_logo"',
-            manifest,
-            count=1,
-        )
-    if replacements == 0:
-        raise BuildError("Could not find <application> in AndroidManifest.xml")
+
+    # Ensure icon attributes point to mipmap
+    updated = re.sub(r'android:icon="@[^"]+"', 'android:icon="@mipmap/ic_launcher"', manifest, count=1)
+    updated = re.sub(r'android:roundIcon="@[^"]+"', 'android:roundIcon="@mipmap/ic_launcher_round"', updated, count=1)
+
     updated, replacements = re.subn(
         r'android:label="[^"]*"',
         f'android:label="{APP_DISPLAY_NAME}"',
         updated,
         count=1,
     )
-    if replacements == 0:
-        updated, replacements = re.subn(
-            r"(<application\b)",
-            rf'\1 android:label="{APP_DISPLAY_NAME}"',
-            updated,
-            count=1,
-        )
     if replacements == 0:
         raise BuildError("Could not set android:label in AndroidManifest.xml")
     ANDROID_MANIFEST.write_text(updated, encoding="utf-8")
