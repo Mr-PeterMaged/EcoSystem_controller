@@ -28,6 +28,108 @@ void main() async {
 class SmartHomeApp extends StatelessWidget {
   const SmartHomeApp({super.key});
 
+  ThemeData _buildTheme({
+    required Brightness brightness,
+    required Color accent,
+  }) {
+    final isDark = brightness == Brightness.dark;
+    final colorScheme =
+        ColorScheme.fromSeed(
+          seedColor: accent,
+          brightness: brightness,
+        ).copyWith(
+          primary: accent,
+          secondary: accent,
+          tertiary: accent,
+          surface: isDark ? kBgDarkSurface : Colors.white,
+        );
+    final scaffoldBg = isDark ? kBgDark : Colors.white;
+    final appBarBg = isDark ? kAppBarDark : Colors.white;
+    final onSurface = isDark ? Colors.white : kTextPrimary;
+
+    WidgetStateProperty<Color?> selectedColor(Color color) =>
+        WidgetStateProperty.resolveWith(
+          (states) => states.contains(WidgetState.selected) ? color : null,
+        );
+
+    return ThemeData(
+      brightness: brightness,
+      scaffoldBackgroundColor: scaffoldBg,
+      colorScheme: colorScheme,
+      useMaterial3: true,
+      appBarTheme: AppBarTheme(
+        backgroundColor: appBarBg,
+        foregroundColor: onSurface,
+        elevation: 0,
+        surfaceTintColor: Colors.transparent,
+      ),
+      progressIndicatorTheme: ProgressIndicatorThemeData(
+        color: accent,
+        circularTrackColor: accent.withValues(alpha: 0.16),
+      ),
+      floatingActionButtonTheme: FloatingActionButtonThemeData(
+        backgroundColor: accent,
+        foregroundColor: Colors.white,
+      ),
+      filledButtonTheme: FilledButtonThemeData(
+        style: FilledButton.styleFrom(
+          backgroundColor: accent,
+          foregroundColor: Colors.white,
+        ),
+      ),
+      elevatedButtonTheme: ElevatedButtonThemeData(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: accent,
+          foregroundColor: Colors.white,
+        ),
+      ),
+      textButtonTheme: TextButtonThemeData(
+        style: TextButton.styleFrom(foregroundColor: accent),
+      ),
+      outlinedButtonTheme: OutlinedButtonThemeData(
+        style: OutlinedButton.styleFrom(
+          foregroundColor: accent,
+          side: BorderSide(color: accent),
+        ),
+      ),
+      switchTheme: SwitchThemeData(
+        thumbColor: selectedColor(accent),
+        trackColor: WidgetStateProperty.resolveWith(
+          (states) => states.contains(WidgetState.selected)
+              ? accent.withValues(alpha: 0.42)
+              : null,
+        ),
+      ),
+      checkboxTheme: CheckboxThemeData(
+        fillColor: selectedColor(accent),
+        checkColor: const WidgetStatePropertyAll(Colors.white),
+      ),
+      radioTheme: RadioThemeData(fillColor: selectedColor(accent)),
+      sliderTheme: SliderThemeData(
+        activeTrackColor: accent,
+        thumbColor: accent,
+        overlayColor: accent.withValues(alpha: 0.14),
+      ),
+      chipTheme: ChipThemeData(
+        selectedColor: accent.withValues(alpha: 0.18),
+        checkmarkColor: accent,
+        side: BorderSide(color: accent.withValues(alpha: 0.24)),
+      ),
+      snackBarTheme: SnackBarThemeData(
+        backgroundColor: isDark ? kBgDarkSurface : kTextPrimary,
+        actionTextColor: accent,
+        contentTextStyle: const TextStyle(color: Colors.white),
+      ),
+      inputDecorationTheme: InputDecorationTheme(
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: accent, width: 1.6),
+        ),
+        floatingLabelStyle: TextStyle(color: accent),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return ValueListenableBuilder<ThemeState>(
@@ -36,20 +138,13 @@ class SmartHomeApp extends StatelessWidget {
         title: 'Smart Home',
         debugShowCheckedModeBanner: false,
         themeMode: state.mode,
-        theme: ThemeData(
+        theme: _buildTheme(
           brightness: Brightness.light,
-          scaffoldBackgroundColor: Colors.white,
-          colorScheme: ColorScheme.light(primary: state.accentColor),
-          useMaterial3: true,
+          accent: state.accentColor,
         ),
-        darkTheme: ThemeData(
+        darkTheme: _buildTheme(
           brightness: Brightness.dark,
-          scaffoldBackgroundColor: kBgDark,
-          colorScheme: ColorScheme.dark(
-            primary: state.accentColor,
-            surface: kBgDarkSurface,
-          ),
-          useMaterial3: true,
+          accent: state.accentColor,
         ),
         home: const LoadingScreen(),
       ),

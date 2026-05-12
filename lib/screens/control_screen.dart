@@ -274,7 +274,7 @@ class _ControlScreenState extends State<ControlScreen> {
                     width: 8,
                     height: 8,
                     decoration: BoxDecoration(
-                      color: _isConnected ? Colors.green : Colors.red,
+                      color: _isConnected ? accent : Colors.red,
                       shape: BoxShape.circle,
                     ),
                   ),
@@ -282,7 +282,7 @@ class _ControlScreenState extends State<ControlScreen> {
                   Text(
                     _isConnected ? 'Connected' : 'No Connection',
                     style: TextStyle(
-                      color: _isConnected ? Colors.green : Colors.red,
+                      color: _isConnected ? accent : Colors.red,
                       fontSize: 12,
                     ),
                   ),

@@ -10,6 +10,7 @@ class NotificationsScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final textColor = isDark ? Colors.white : kTextPrimary;
+    final accent = Theme.of(context).colorScheme.primary;
 
     return Scaffold(
       backgroundColor: isDark ? kBgDark : Colors.white,
@@ -20,10 +21,7 @@ class NotificationsScreen extends StatelessWidget {
           onTap: () => Navigator.pop(context),
           child: Container(
             margin: const EdgeInsets.all(8),
-            decoration: const BoxDecoration(
-              color: kGreen,
-              shape: BoxShape.circle,
-            ),
+            decoration: BoxDecoration(color: accent, shape: BoxShape.circle),
             child: const Icon(
               Icons.arrow_back_ios_new,
               color: Colors.white,
@@ -108,9 +106,9 @@ class _NotificationTile extends StatelessWidget {
     final iconColor = switch (alert.category) {
       'Gas' => Colors.red,
       'Temperature' => Colors.orange,
-      'Motion' => kGreen,
+      'Motion' => Theme.of(context).colorScheme.primary,
       'Sensor' => Colors.red,
-      _ => kGreen,
+      _ => Theme.of(context).colorScheme.primary,
     };
 
     return Container(

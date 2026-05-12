@@ -6,7 +6,9 @@
       "Bash(python -c \"from PIL import Image; print\\('Pillow OK'\\)\")",
       "Bash(python mockup_gen.py)",
       "Bash(python mockup_gen.py --bg dark)",
-      "Bash(python -c ' *)"
+      "Bash(python -c ' *)",
+      "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\peter\\\\Downloads\\\\EcoSystem_controller-main\" -Force)",
+      "Bash(Select-Object Name, PSIsContainer)"
     ]
   }
 }

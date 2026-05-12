@@ -10,16 +10,22 @@ from pathlib import Path
 import qrcode
 import requests
 
+from github_repos import (
+    APK_REPO_NAME,
+    APP_DISPLAY_NAME,
+    GITHUB_OWNER,
+    PROJECT_ROOT,
+)
 
-PROJECT_ROOT = Path(__file__).resolve().parent
+
 APK_BUILDS_DIR = PROJECT_ROOT / "apk_builds"
 PUBSPEC_FILE = PROJECT_ROOT / "pubspec.yaml"
 DEFAULT_QR_PATH = APK_BUILDS_DIR / "EcoSystem_Controller_download_qr.png"
 DEFAULT_LINK_PATH = APK_BUILDS_DIR / "EcoSystem_Controller_download_link.txt"
 
-OWNER = "Mr-PeterMaged"
-REPO = "EcoSystem_controller_APK"
-APP_NAME = "EcoSystem Controller"
+OWNER = GITHUB_OWNER
+REPO = APK_REPO_NAME
+APP_NAME = APP_DISPLAY_NAME
 GITHUB_API = "https://api.github.com"
 GITHUB_REPO_URL = f"https://github.com/{OWNER}/{REPO}"
 

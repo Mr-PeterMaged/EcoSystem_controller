@@ -8,11 +8,14 @@ import '../models/app_user.dart';
 class UserStorageService {
   static const _usersKey = 'registeredUsers';
   static const _projectUsersPath = 'data/users.json';
+  static const _loggedInUserKey = 'loggedInUser';
 
   static SharedPreferences? _prefs;
   static List<AppUser> _users = [];
+  static AppUser? _currentUser;
 
   static List<AppUser> get users => List.unmodifiable(_users);
+  static AppUser? get currentUser => _currentUser;
 
   static Future<void> init() async {
     if (_prefs != null) return;
@@ -35,6 +38,33 @@ class UserStorageService {
     await init();
     return _users.isNotEmpty;
   }
+
+  // ── Session management ──────────────────────────────────────────────────────
+
+  static Future<void> saveSession(AppUser user) async {
+    await init();
+    _currentUser = user;
+    await _prefs?.setString(_loggedInUserKey, user.username);
+  }
+
+  static Future<void> clearSession() async {
+    await init();
+    _currentUser = null;
+    await _prefs?.remove(_loggedInUserKey);
+  }
+
+  /// Returns the previously logged-in user if the session is still valid.
+  static Future<AppUser?> restoreSession() async {
+    await init();
+    final username = _prefs?.getString(_loggedInUserKey);
+    if (username == null || username.isEmpty) return null;
+    final matches = _users.where((u) => u.username == username);
+    if (matches.isEmpty) return null;
+    _currentUser = matches.first;
+    return _currentUser;
+  }
+
+  // ── Auth ────────────────────────────────────────────────────────────────────
 
   static Future<AppUser?> login(String username, String password) async {
     await init();
@@ -80,6 +110,48 @@ class UserStorageService {
     await _saveUsers();
     return null;
   }
+
+  // ── Profile update ──────────────────────────────────────────────────────────
+
+  static Future<String?> updateUser({
+    required String username,
+    String? newFullName,
+    String? newPassword,
+    String? profileImagePath,
+  }) async {
+    await init();
+    final index = _users.indexWhere((u) => u.username == username);
+    if (index < 0) return 'User not found';
+
+    final existing = _users[index];
+
+    String? newPasswordHash;
+    if (newPassword != null && newPassword.isNotEmpty) {
+      if (newPassword.length < 4) {
+        return 'Password must be at least 4 characters';
+      }
+      newPasswordHash = _hashPassword(_normalize(username), newPassword);
+    }
+
+    final updated = existing.copyWith(
+      fullName: newFullName,
+      passwordHash: newPasswordHash,
+      profileImagePath: profileImagePath,
+    );
+
+    final newList = List<AppUser>.from(_users);
+    newList[index] = updated;
+    _users = newList;
+
+    if (_currentUser?.username == username) {
+      _currentUser = updated;
+    }
+
+    await _saveUsers();
+    return null;
+  }
+
+  // ── Private helpers ─────────────────────────────────────────────────────────
 
   static List<AppUser> _readStoredUsers() {
     final source = _prefs?.getString(_usersKey) ?? '';

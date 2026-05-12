@@ -7,10 +7,15 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
+from github_repos import (
+    APK_REPO_DIR,
+    CODE_REPO_URL,
+    DEFAULT_BRANCH,
+    DEFAULT_REMOTE,
+)
 
-DEFAULT_REMOTE = "origin"
-DEFAULT_BRANCH = "main"
-DEFAULT_MESSAGE = "Upload all folder files"
+
+DEFAULT_MESSAGE = "Upload source code files"
 GITHUB_REGULAR_FILE_LIMIT = 100 * 1024 * 1024
 
 
@@ -59,12 +64,13 @@ def is_git_repo(path: Path) -> bool:
 
 def discover_git_repos(root: Path) -> list[Path]:
     repos = {root.resolve()}
+    skipped_repos = {APK_REPO_DIR.resolve()}
 
     for git_path in root.rglob(".git"):
         if not git_path.exists():
             continue
         repo_dir = git_path.parent.resolve()
-        if repo_dir == root.resolve():
+        if repo_dir == root.resolve() or repo_dir in skipped_repos:
             continue
         repos.add(repo_dir)
 
@@ -113,17 +119,24 @@ def read_repo_url(repo: Path) -> str | None:
     return repo_url_file.read_text(encoding="utf-8", errors="replace").strip() or None
 
 
-def ensure_remote(repo: Path, remote: str) -> None:
-    if get_remote_url(repo, remote):
+def ensure_remote(repo: Path, remote: str, repo_url: str | None = None) -> None:
+    current_url = get_remote_url(repo, remote)
+    if current_url:
+        if repo_url and current_url != repo_url:
+            run(["git", "remote", "set-url", remote, repo_url], cwd=repo)
         return
 
-    repo_url = read_repo_url(repo)
-    if not repo_url:
+    if repo_url:
+        run(["git", "remote", "add", remote, repo_url], cwd=repo)
+        return
+
+    saved_repo_url = read_repo_url(repo)
+    if not saved_repo_url:
         raise UploadAllError(
             f"No '{remote}' remote is configured for {repo}, and repo_url.txt was not found."
         )
 
-    run(["git", "remote", "add", remote, repo_url], cwd=repo)
+    run(["git", "remote", "add", remote, saved_repo_url], cwd=repo)
 
 
 def has_staged_changes(repo: Path) -> bool:
@@ -220,9 +233,10 @@ def push_repo(
     message: str,
     child_repos: list[Path],
     use_lfs: bool,
+    repo_url: str | None = None,
     force_ignored: bool = False,
 ) -> None:
-    ensure_remote(repo, remote)
+    ensure_remote(repo, remote, repo_url=repo_url)
     active_branch = current_branch(repo, branch)
 
     print("\n" + "=" * 72)
@@ -243,8 +257,8 @@ def push_repo(
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description=(
-            "Force-add, commit, and push every Git-trackable file in this folder, "
-            "including ignored and hidden files."
+            "Commit and push Git-trackable source files in this folder. "
+            "Ignored files stay ignored unless --force-ignored is passed."
         )
     )
     parser.add_argument(
@@ -266,6 +280,11 @@ def build_parser() -> argparse.ArgumentParser:
         "--branch",
         default=DEFAULT_BRANCH,
         help=f"Fallback branch name if the repo has no active branch. Default: {DEFAULT_BRANCH}.",
+    )
+    parser.add_argument(
+        "--repo-url",
+        default=CODE_REPO_URL,
+        help=f"Source-code repository URL for the root repo. Default: {CODE_REPO_URL}.",
     )
     parser.add_argument(
         "--no-recursive-repos",
@@ -325,6 +344,7 @@ def main(argv: list[str] | None = None) -> int:
             message=args.message,
             child_repos=child_repos,
             use_lfs=not args.no_lfs,
+            repo_url=args.repo_url if repo == root else None,
             force_ignored=args.force_ignored,
         )
 

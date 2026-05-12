@@ -6,6 +6,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from upload_all import (
+    discover_git_repos,
     path_is_relative_to,
     large_files,
     stage_everything,
@@ -44,6 +45,23 @@ class TestLargeFiles:
         big.write_bytes(b"x" * (100 * 1024 * 1024 + 1))
         result = large_files(tmp_path, [child_repo.resolve()])
         assert big.resolve() not in result
+
+
+class TestDiscoverGitRepos:
+    def test_skips_apk_release_repo(self, tmp_path):
+        root_git = tmp_path / ".git"
+        apk_git = tmp_path / ".apk_release_repo" / ".git"
+        child_git = tmp_path / "tools" / ".git"
+        root_git.mkdir()
+        apk_git.mkdir(parents=True)
+        child_git.mkdir(parents=True)
+
+        with patch("upload_all.APK_REPO_DIR", tmp_path / ".apk_release_repo"):
+            result = discover_git_repos(tmp_path)
+
+        assert tmp_path.resolve() in result
+        assert (tmp_path / "tools").resolve() in result
+        assert (tmp_path / ".apk_release_repo").resolve() not in result
 
 
 class TestStageEverything:

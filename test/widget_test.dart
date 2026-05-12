@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'package:app1/screens/signup_screen.dart';
+import 'package:ecosystem_controller/screens/signup_screen.dart';
 
 void main() {
   testWidgets('renders signup screen for first account', (

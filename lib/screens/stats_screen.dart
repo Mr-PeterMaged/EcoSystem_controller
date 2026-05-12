@@ -63,6 +63,7 @@ class _StatsScreenState extends State<StatsScreen> {
     final textColor = isDark ? Colors.white : kTextPrimary;
     final subColor = isDark ? Colors.white60 : Colors.black54;
     final cardBg = isDark ? kCardDark : kCardLight;
+    final accent = Theme.of(context).colorScheme.primary;
     final gasDetected = _status['gasDetected'] == true;
     final temperature = (_status['temperature'] as num?) ?? 0;
     final temperatureWarning =
@@ -78,10 +79,7 @@ class _StatsScreenState extends State<StatsScreen> {
           onTap: () => Navigator.pop(context),
           child: Container(
             margin: const EdgeInsets.all(8),
-            decoration: const BoxDecoration(
-              color: kGreen,
-              shape: BoxShape.circle,
-            ),
+            decoration: BoxDecoration(color: accent, shape: BoxShape.circle),
             child: const Icon(
               Icons.arrow_back_ios_new,
               color: Colors.white,
@@ -151,7 +149,7 @@ class _StatsScreenState extends State<StatsScreen> {
                     width: 8,
                     height: 8,
                     decoration: BoxDecoration(
-                      color: _isConnected ? Colors.green : Colors.red,
+                      color: _isConnected ? accent : Colors.red,
                       shape: BoxShape.circle,
                     ),
                   ),
@@ -159,7 +157,7 @@ class _StatsScreenState extends State<StatsScreen> {
                   Text(
                     _isConnected ? 'Live data' : 'No Connection',
                     style: TextStyle(
-                      color: _isConnected ? Colors.green : Colors.red,
+                      color: _isConnected ? accent : Colors.red,
                       fontSize: 12,
                     ),
                   ),
@@ -189,7 +187,7 @@ class _StatsScreenState extends State<StatsScreen> {
                       'System',
                       _status['system'] == true ? 'Active' : 'Inactive',
                       subColor,
-                      _status['system'] == true ? kGreen : Colors.red,
+                      _status['system'] == true ? accent : Colors.red,
                       isDark,
                       last: false,
                     ),
@@ -197,7 +195,7 @@ class _StatsScreenState extends State<StatsScreen> {
                       'Gas Status',
                       gasDetected ? 'Gas Detected' : 'Normal',
                       subColor,
-                      gasDetected ? Colors.red : kGreen,
+                      gasDetected ? Colors.red : accent,
                       isDark,
                       last: false,
                     ),
@@ -229,7 +227,7 @@ class _StatsScreenState extends State<StatsScreen> {
                       'Motion',
                       motionDetected ? 'Detected' : 'Clear',
                       subColor,
-                      motionDetected ? Colors.orange : kGreen,
+                      motionDetected ? Colors.orange : accent,
                       isDark,
                       last: false,
                     ),
@@ -237,7 +235,7 @@ class _StatsScreenState extends State<StatsScreen> {
                       'LEDs',
                       _status['led2'] == true ? 'ON' : 'OFF',
                       subColor,
-                      _status['led2'] == true ? kGreen : textColor,
+                      _status['led2'] == true ? accent : textColor,
                       isDark,
                       last: true,
                     ),

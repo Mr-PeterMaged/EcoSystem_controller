@@ -6,12 +6,12 @@ import sys
 from pathlib import Path
 
 from git_utils import GitError, ensure_git_available
-
-
-PROJECT_ROOT = Path(__file__).resolve().parent
-APK_REPO_URL = "https://github.com/Mr-PeterMaged/EcoSystem_controller_APK.git"
-APK_REPO_DIR = PROJECT_ROOT / ".apk_release_repo"
-DEFAULT_BRANCH = "main"
+from github_repos import (
+    APK_REPO_DIR,
+    APK_REPO_URL,
+    DEFAULT_BRANCH,
+    PROJECT_ROOT,
+)
 
 
 # Alias so callers (upload.py) can catch the same name regardless of source.

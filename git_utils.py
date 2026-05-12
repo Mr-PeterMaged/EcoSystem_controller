@@ -6,9 +6,9 @@ import shutil
 import subprocess
 from typing import Sequence
 
+from github_repos import DEFAULT_BRANCH, DEFAULT_REMOTE
 
-DEFAULT_BRANCH = "main"
-DEFAULT_REMOTE = "origin"
+
 REMOTE_FILE = Path("repo_url.txt")
 
 

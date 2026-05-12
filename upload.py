@@ -7,13 +7,17 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
-from github import APK_REPO_DIR, DEFAULT_BRANCH, GitHubSetupError, ensure_apk_repo
+from github import GitHubSetupError, ensure_apk_repo
+from github_repos import (
+    APK_REPO_DIR,
+    APP_DISPLAY_NAME,
+    DEFAULT_BRANCH,
+    PROJECT_ROOT,
+    PUBLIC_APK_NAME,
+)
 
 
-PROJECT_ROOT = Path(__file__).resolve().parent
 APK_BUILDS_DIR = PROJECT_ROOT / "apk_builds"
-PUBLIC_APK_NAME = "EcoSystem_Controller.apk"
-APP_DISPLAY_NAME = "EcoSystem Controller"
 
 
 class UploadError(RuntimeError):
@@ -179,9 +183,14 @@ def build_parser() -> argparse.ArgumentParser:
         help=f"APK repository branch. Default: {DEFAULT_BRANCH}",
     )
     parser.add_argument(
+        "--with-release",
+        action="store_true",
+        help="Also publish the APK to GitHub Releases and generate a QR code.",
+    )
+    parser.add_argument(
         "--skip-release",
         action="store_true",
-        help="Upload the APK file only and skip GitHub Releases/QR generation.",
+        help="Compatibility flag. APK repository upload is repo-only by default.",
     )
     return parser
 
@@ -199,7 +208,7 @@ def main(argv: list[str] | None = None) -> int:
         print(f"Uploaded latest APK to: {uploaded_path}")
         print(f"Public APK repository: {APK_REPO_DIR}")
 
-        if not args.skip_release:
+        if args.with_release and not args.skip_release:
             run_release_publish(apk_path, args.version)
     except (UploadError, GitHubSetupError) as exc:
         print(f"Error: {exc}", file=sys.stderr)

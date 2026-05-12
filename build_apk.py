@@ -33,6 +33,14 @@ from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 
+from github_repos import (
+    APP_DISPLAY_NAME,
+    CODE_REPO_URL,
+    DEFAULT_BRANCH as DEFAULT_SOURCE_BRANCH,
+    DEFAULT_REMOTE as SOURCE_REMOTE,
+    PROJECT_ROOT,
+)
+
 if sys.platform != "win32":
     raise SystemExit(
         "build_apk.py requires Windows — it uses gradlew.bat, taskkill, and "
@@ -40,8 +48,6 @@ if sys.platform != "win32":
     )
 
 
-PROJECT_ROOT = Path(__file__).resolve().parent
-APP_DISPLAY_NAME = "EcoSystem Controller"
 APP_FILE_PREFIX = "EcoSystem_Controller"
 DEFAULT_LOGO = PROJECT_ROOT / "Logo" / "dark_mode.png"
 PUBSPEC_FILE = PROJECT_ROOT / "pubspec.yaml"
@@ -54,8 +60,6 @@ ANDROID_GRADLE_WRAPPER = PROJECT_ROOT / "android" / "gradlew.bat"
 DEFAULT_OUTPUT_DIR = PROJECT_ROOT / "apk_builds"
 LOCAL_BUILD_CACHE = PROJECT_ROOT / ".build_cache"
 MAX_GRADLE_REPAIR_ATTEMPTS = 8
-SOURCE_REMOTE = "origin"
-DEFAULT_SOURCE_BRANCH = "main"
 
 
 @dataclass(frozen=True)
@@ -733,7 +737,9 @@ def _upload_source_changes(version: AppVersion, message: str | None) -> None:
         capture_output=True,
     )
     if remote_check.returncode != 0:
-        raise BuildError(f"Git remote '{SOURCE_REMOTE}' is not configured.")
+        run_plain_command(["git", "remote", "add", SOURCE_REMOTE, CODE_REPO_URL])
+    elif remote_check.stdout.strip() != CODE_REPO_URL:
+        run_plain_command(["git", "remote", "set-url", SOURCE_REMOTE, CODE_REPO_URL])
 
     run_plain_command(["git", "push", "-u", SOURCE_REMOTE, branch])
 

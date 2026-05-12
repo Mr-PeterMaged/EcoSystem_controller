@@ -8,7 +8,8 @@
     <application
         android:label="EcoSystem Controller"
         android:name="${applicationName}"
-        android:icon="@drawable/app_logo">
+        android:icon="@drawable/app_logo"
+        android:roundIcon="@drawable/app_logo">
         <activity
             android:name=".MainActivity"
             android:exported="true"

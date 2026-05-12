@@ -56,6 +56,8 @@ class _LoginScreenState extends State<LoginScreen> {
       _error = '';
     });
 
+    await UserStorageService.saveSession(appUser);
+
     final ip = AppSettingsService.settings.controllerIp;
     final connected = await ConnectionService.connectWifi(ip);
 

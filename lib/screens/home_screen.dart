@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../services/app_settings_service.dart';
 import '../services/connection_service.dart';
 import '../services/notification_service.dart';
+import '../services/user_storage_service.dart';
 import '../widgets/control_button.dart';
 import '../widgets/green_button.dart';
 import '../app_constants.dart';
@@ -13,6 +14,7 @@ import 'stats_screen.dart';
 import 'login_screen.dart';
 import 'display_screen.dart';
 import 'notifications_screen.dart';
+import 'profile_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   final String username;
@@ -31,6 +33,8 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
+  late String _displayName;
+
   Map<String, dynamic> _status = {
     'system': true,
     'gasSensor': true,
@@ -57,6 +61,7 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
+    _displayName = widget.username;
     _isConnected = widget.connectedViaWifi;
     AppSettingsService.settingsNotifier.addListener(_startPolling);
     _startPolling();
@@ -180,7 +185,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       width: 8,
                       height: 8,
                       decoration: BoxDecoration(
-                        color: _isConnected ? Colors.green : Colors.red,
+                        color: _isConnected ? accent : Colors.red,
                         shape: BoxShape.circle,
                       ),
                     ),
@@ -188,7 +193,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     Text(
                       _isConnected ? 'Connected to ESP32' : 'No Connection',
                       style: TextStyle(
-                        color: _isConnected ? Colors.green : Colors.red,
+                        color: _isConnected ? accent : Colors.red,
                         fontSize: 12,
                         fontWeight: FontWeight.w500,
                       ),
@@ -198,7 +203,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 const SizedBox(height: 12),
 
                 Text(
-                  'Welcome ${widget.username}',
+                  'Welcome $_displayName',
                   style: TextStyle(
                     fontSize: 26,
                     fontWeight: FontWeight.bold,
@@ -595,6 +600,18 @@ class _HomeScreenState extends State<HomeScreen> {
                 Navigator.pop(context);
               }),
               const SizedBox(height: 16),
+              _drawerItem(Icons.person_outline, 'My Profile', accent, () async {
+                Navigator.pop(context);
+                await Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const ProfileScreen()),
+                );
+                final user = UserStorageService.currentUser;
+                if (user != null && mounted) {
+                  setState(() => _displayName = user.displayName);
+                }
+              }),
+              const SizedBox(height: 16),
               _drawerItem(Icons.settings_outlined, 'Settings', accent, () {
                 Navigator.pop(context);
                 Navigator.push(
@@ -611,18 +628,20 @@ class _HomeScreenState extends State<HomeScreen> {
                 );
               }),
               const SizedBox(height: 16),
-              _drawerItem(Icons.swap_horiz, 'Switch Acc.', accent, () {
-                Navigator.pop(context);
-                Navigator.pushReplacement(
-                  context,
+              _drawerItem(Icons.swap_horiz, 'Switch Acc.', accent, () async {
+                final nav = Navigator.of(context);
+                nav.pop();
+                await UserStorageService.clearSession();
+                nav.pushReplacement(
                   MaterialPageRoute(builder: (_) => const LoginScreen()),
                 );
               }),
               const SizedBox(height: 16),
-              _drawerItem(Icons.logout, 'Log out', accent, () {
-                Navigator.pop(context);
-                Navigator.pushReplacement(
-                  context,
+              _drawerItem(Icons.logout, 'Log out', accent, () async {
+                final nav = Navigator.of(context);
+                nav.pop();
+                await UserStorageService.clearSession();
+                nav.pushReplacement(
                   MaterialPageRoute(builder: (_) => const LoginScreen()),
                 );
               }),
