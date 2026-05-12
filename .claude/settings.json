@@ -8,7 +8,11 @@
       "PowerShell(python -c \"import ast; ast.parse\\(open\\('d:/app1/make_phone_mockups.py'\\).read\\(\\)\\); print\\('OK'\\)\")",
       "Bash(python -c \"from upload_code import upload_source_code\")",
       "Bash(pip install *)",
-      "Bash(git commit -m ' *)"
+      "Bash(git commit -m ' *)",
+      "Read(//c/Users/peter/Downloads/sketch_may4a/**)"
+    ],
+    "additionalDirectories": [
+      "c:\\Users\\peter\\Downloads\\sketch_may4a"
     ]
   }
 }

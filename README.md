@@ -18,6 +18,8 @@ Visit the project website: [smart-home-self-powered.vercel.app](https://smart-ho
 - **Dynamic logo on splash and About screens** — The splash/loading screen now uses `Logo/dark_mode.png` on a pure black background. The About screen switches between `Logo/dark_mode.png` and `Logo/light_mode.png` based on the active theme.
 - **Team update** — Recardo Raafat (Assistant Leader) has been added to the project team in the About screen.
 - **Website link** — The About screen now includes a button linking to the project website.
+- **Door button** — A new Door button in the Full Control screen opens or locks the door remotely. The button reflects the real-time door state (`Open` / `Locked`) fetched from the ESP32. Tapping it sends a `door` command to the ESP32, which moves the servo and switches the green/red LEDs.
+- **PIR motion detection** — The ESP32 now reads the HC-SR501 PIR sensor and reports `pirDetected: true/false` in every status response. Motion state is shown live in the Stats screen and triggers an in-app alert notification.
 
 ### Dependencies Added
 | Package | Purpose |
@@ -37,6 +39,7 @@ Visit the project website: [smart-home-self-powered.vercel.app](https://smart-ho
 - Full control panel for connected components:
   - Main system, gas sensor, temperature sensor, PIR motion sensor
   - LEDs, buzzer, auto light mode
+  - Door lock / unlock (moves servo via app or RFID card)
 - System statistics: temperature, humidity, gas detection, motion, LED status
 - Notifications and alerts for system updates, temperature, gas, and motion events
 - In-app notification history with clear action
@@ -67,6 +70,115 @@ Visit the project website: [smart-home-self-powered.vercel.app](https://smart-ho
 
 ### Settings
 ![Settings Screen](mockup/output/display_phone_mockup.png)
+
+---
+
+## ESP32 Firmware
+
+The app communicates with an ESP32 microcontroller running `sketch_may4a.ino`. The firmware supports two transport modes selected automatically at startup: **WiFi** (HTTP server on port 8080) when the network is reachable, or **Bluetooth Serial** as a fallback.
+
+### Hardware Pin Map
+
+| Pin | Label | Type | Purpose |
+|-----|-------|------|---------|
+| 4 | DHT_PIN | Digital | DHT11 temperature & humidity sensor |
+| 14 | LDR_DO | Digital IN | LDR digital threshold output |
+| 34 | LDR_AO | Analog IN | LDR analog level (input-only pin) |
+| 26 | MQ2_DO | Digital IN | MQ-2 gas sensor digital threshold |
+| 35 | MQ2_AO | Analog IN | MQ-2 gas sensor analog level (input-only pin) |
+| 16 | BUZZER_PIN | Digital OUT | Piezo buzzer |
+| 17 | LED1_PIN | Digital OUT | Gas alarm LED (red) |
+| 25 | LED2_PIN | Digital OUT | LDR-controlled night light LED |
+| 33 | BTN_PIN | Digital IN | Manual LED2 toggle button (pull-up) |
+| 5 | RFID_SS | SPI CS | MFRC522 RFID reader chip-select |
+| 27 | RFID_RST | Digital OUT | MFRC522 RFID reader reset |
+| 32 | LED_GREEN | Digital OUT | Door unlocked indicator |
+| 13 | LED_RED | Digital OUT | Door locked indicator |
+| 15 | SERVO_PIN | PWM OUT | Servo motor (0° = locked, 90° = open) |
+| 0 | MQ2_PWR | Digital OUT | MOSFET gate — MQ-2 power |
+| 2 | LCD_PWR | Digital OUT | MOSFET gate — LCD power |
+| 12 | PIR_PIN | Digital IN | HC-SR501 PIR motion sensor output |
+| 21 | SDA | I²C | LCD via I²C (address 0x27) |
+| 22 | SCL | I²C | LCD via I²C |
+| 18/19/23 | SPI | SPI | MFRC522 RFID reader (CLK/MISO/MOSI) |
+
+### HTTP API Reference
+
+The ESP32 runs a web server on **port 8080** when connected to WiFi.
+
+#### `GET /status`
+
+Returns the current state of all devices and sensors as JSON.
+
+**Response fields:**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `system` | bool | Master system power |
+| `gasSensor` | bool | Gas sensor enabled |
+| `tempSensor` | bool | Temperature sensor enabled |
+| `ledSensor` | bool | LED sensor enabled |
+| `pirSensor` | bool | PIR sensor enabled |
+| `ldrSensor` | bool | LDR sensor enabled |
+| `buzzer` | bool | Buzzer enabled |
+| `autoLight` | bool | Automatic night light enabled |
+| `mq2Pwr` | bool | MQ-2 MOSFET power state |
+| `lcdPwr` | bool | LCD MOSFET power state |
+| `temperature` | float | Temperature reading in °C |
+| `humidity` | float | Relative humidity reading in % |
+| `gasDetected` | bool | `true` when gas level exceeds threshold |
+| `gasPercent` | int | Gas level 0–100% |
+| `led2` | bool | Night light LED state |
+| `locked` | bool | `true` = door locked (servo at 0°) |
+| `door` | bool | `true` = door open (servo at 90°) — inverse of `locked` |
+| `pirDetected` | bool | `true` when PIR sensor detects motion |
+
+#### `POST /control`
+
+Send a JSON body with any subset of the fields below to change device state. Returns the updated `/status` JSON immediately.
+
+**Accepted fields:**
+
+| Field | Type | Effect |
+|-------|------|--------|
+| `system` | bool | Master on/off — turning off forces all other devices off |
+| `gasSensor` | bool | Enable / disable gas monitoring |
+| `tempSensor` | bool | Enable / disable DHT11 readings |
+| `ledSensor` | bool | Enable / disable LED sensor logic |
+| `pirSensor` | bool | Enable / disable PIR reading |
+| `ldrSensor` | bool | Enable / disable LDR light detection |
+| `buzzer` | bool | Enable / disable buzzer output |
+| `autoLight` | bool | Enable / disable automatic LDR night light |
+| `led2` | bool | Directly set the night light LED |
+| `door` | bool | `true` = open door (servo 90°, green LED on); `false` = lock door (servo 0°, red LED on) |
+| `mq2Pwr` | bool | Toggle MOSFET power to MQ-2 sensor |
+| `lcdPwr` | bool | Toggle MOSFET power to LCD |
+
+**Example — open the door:**
+```json
+POST http://<ESP32_IP>:8080/control
+{"door": true}
+```
+
+**Example — turn off everything:**
+```json
+POST http://<ESP32_IP>:8080/control
+{"system": false}
+```
+
+### Security & RFID
+
+The RFID reader (MFRC522) is the primary door control. The allowed card UID is stored in the `ALLOWED_UID` constant. On a correct card scan, the servo rotates to 90° and the green LED turns on. On a wrong card, a beep is emitted and the wrong-attempt counter increments. After **3 wrong attempts** the system enters a **60-second lockout** — the LCD shows a countdown and no RFID scans are processed.
+
+The app's Door button bypasses RFID authentication entirely and controls the servo directly via the `/control` endpoint. Keep the ESP32 on a trusted local network.
+
+### Sensor Behavior
+
+**Gas alarm (MQ-2):** When `gasPercent ≥ 20%`, the alarm LED (LED1) blinks at 200 ms intervals and the buzzer sounds. The LCD shows `GAS: XX% DANGER!`. The alarm clears automatically once gas drops below the threshold. If the MQ-2 appears disconnected (DO = LOW and analog < 200), an `ERROR!!! MQ2 IS OFF` message is shown instead.
+
+**Night light (LDR):** When `autoLightOn` is true, the LDR digital output is polled. When darkness is detected (DO = HIGH), LED2 turns on automatically. The physical button on pin 33 also toggles LED2 manually, overriding auto mode until the next LDR state change.
+
+**Motion (PIR):** The HC-SR501 output is read on pin 12. When the sensor goes HIGH (motion detected), `pirDetected: true` is included in the status response. The app uses this field to trigger an in-app motion alert notification.
 
 ---
 
