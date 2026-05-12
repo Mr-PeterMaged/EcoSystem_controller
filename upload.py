@@ -54,6 +54,13 @@ def run_git(
         ) from exc
 
 
+def _apk_number(apk_path: Path) -> int:
+    """Extract the trailing number from EcoSystem_Controller_*_apk-N.apk, or -1."""
+    import re
+    match = re.search(r"-(\d+)\.apk$", apk_path.name)
+    return int(match.group(1)) if match else -1
+
+
 def resolve_apk(apk_arg: str | None) -> Path:
     if apk_arg:
         apk_path = Path(apk_arg)
@@ -64,14 +71,13 @@ def resolve_apk(apk_arg: str | None) -> Path:
             raise UploadError(f"APK file not found: {apk_path}")
         return apk_path
 
-    apk_files = sorted(
-        APK_BUILDS_DIR.glob("*.apk"),
-        key=lambda path: path.stat().st_mtime,
-        reverse=True,
-    )
+    apk_files = list(APK_BUILDS_DIR.glob("*.apk"))
     if not apk_files:
         raise UploadError(f"No APK files found in {APK_BUILDS_DIR}")
-    return apk_files[0].resolve()
+
+    latest = max(apk_files, key=_apk_number)
+    print(f"Latest APK : {latest.name}  (number {_apk_number(latest)})")
+    return latest.resolve()
 
 
 def remove_old_public_apks(repo_dir: Path) -> None:
