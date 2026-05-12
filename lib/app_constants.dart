@@ -19,6 +19,7 @@ const Map<String, String> kDeviceLabels = {
   'ldrSensor': 'LDR',
   'buzzer': 'Buzzer',
   'autoLight': 'Auto Light',
+  'door': 'Door',
 };
 
 const List<String> kAllDeviceKeys = [
@@ -30,6 +31,7 @@ const List<String> kAllDeviceKeys = [
   'ldrSensor',
   'buzzer',
   'autoLight',
+  'door',
 ];
 
 // Eco Mode: keeps safety sensors, turns off lights/motion/buzzer

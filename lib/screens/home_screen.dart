@@ -50,6 +50,7 @@ class _HomeScreenState extends State<HomeScreen> {
     'led2': false,
     'locked': true,
     'gasPercent': 0,
+    'door': false,
   };
 
   Timer? _timer;

@@ -30,6 +30,7 @@ class _ControlScreenState extends State<ControlScreen> {
     'led2': false,
     'locked': true,
     'gasPercent': 0,
+    'door': false,
   };
 
   Timer? _timer;
