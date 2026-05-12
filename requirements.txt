@@ -5,5 +5,8 @@
 requests>=2.31.0
 qrcode[pil]>=7.4.2
 
+# make_phone_mockups.py / mockup_gen.py — screenshot mockup generation
+Pillow>=10.0.0
+
 # tests/
 pytest>=8.0.0
