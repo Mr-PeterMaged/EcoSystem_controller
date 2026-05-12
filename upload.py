@@ -13,7 +13,6 @@ from github_repos import (
     APP_DISPLAY_NAME,
     DEFAULT_BRANCH,
     PROJECT_ROOT,
-    PUBLIC_APK_NAME,
 )
 
 
@@ -123,15 +122,17 @@ def upload_latest_apk(
     *,
     apk_path: Path,
     version: str,
-    public_name: str,
     branch: str,
 ) -> Path:
     repo_dir = ensure_apk_repo(branch=branch)
-    destination = repo_dir / public_name
+
+    # Keep the original filename (e.g. EcoSystem_Controller_release_apk-5.apk)
+    # so the version number is visible in the GitHub repository.
+    destination = repo_dir / apk_path.name
 
     remove_old_public_apks(repo_dir)
     shutil.copy2(apk_path, destination)
-    write_release_readme(repo_dir, public_name, version)
+    write_release_readme(repo_dir, apk_path.name, version)
 
     run_git(["add", "--all"], cwd=repo_dir)
     if has_staged_changes(repo_dir):
@@ -167,21 +168,16 @@ def run_release_publish(apk_path: Path, version: str) -> None:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="Upload only the latest APK to the public APK repository."
+        description="Upload the highest-numbered APK from apk_builds/ to the public GitHub repository."
     )
     parser.add_argument(
         "--apk",
-        help="APK file to upload. Default: newest .apk in apk_builds/.",
+        help="APK file to upload. Default: highest-numbered .apk in apk_builds/.",
     )
     parser.add_argument(
         "--version",
         default="",
         help="Version text written to VERSION.txt and the release commit.",
-    )
-    parser.add_argument(
-        "--public-name",
-        default=PUBLIC_APK_NAME,
-        help=f"APK name inside the public repo. Default: {PUBLIC_APK_NAME}",
     )
     parser.add_argument(
         "--branch",
@@ -193,11 +189,6 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Also publish the APK to GitHub Releases and generate a QR code.",
     )
-    parser.add_argument(
-        "--skip-release",
-        action="store_true",
-        help="Compatibility flag. APK repository upload is repo-only by default.",
-    )
     return parser
 
 
@@ -208,13 +199,12 @@ def main(argv: list[str] | None = None) -> int:
         uploaded_path = upload_latest_apk(
             apk_path=apk_path,
             version=args.version,
-            public_name=args.public_name,
             branch=args.branch,
         )
-        print(f"Uploaded latest APK to: {uploaded_path}")
-        print(f"Public APK repository: {APK_REPO_DIR}")
+        print(f"Uploaded : {uploaded_path.name}")
+        print(f"Repo dir : {APK_REPO_DIR}")
 
-        if args.with_release and not args.skip_release:
+        if args.with_release:
             run_release_publish(apk_path, args.version)
     except (UploadError, GitHubSetupError) as exc:
         print(f"Error: {exc}", file=sys.stderr)
