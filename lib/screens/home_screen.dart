@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import '../services/app_settings_service.dart';
 import '../services/connection_service.dart';
@@ -15,6 +16,7 @@ import 'login_screen.dart';
 import 'display_screen.dart';
 import 'notifications_screen.dart';
 import 'profile_screen.dart';
+import 'weather_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   final String username;
@@ -34,6 +36,7 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   late String _displayName;
+  String? _profileImagePath;
 
   Map<String, dynamic> _status = {
     'system': true,
@@ -64,6 +67,7 @@ class _HomeScreenState extends State<HomeScreen> {
     super.initState();
     _displayName = widget.username;
     _isConnected = widget.connectedViaWifi;
+    _profileImagePath = UserStorageService.currentUser?.profileImagePath;
     AppSettingsService.settingsNotifier.addListener(_startPolling);
     _startPolling();
   }
@@ -580,6 +584,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Drawer _buildDrawer(BuildContext context, bool isDark, Color accent) {
     final textColor = isDark ? Colors.white : kTextPrimary;
+    final hasImage = _profileImagePath != null &&
+        File(_profileImagePath!).existsSync();
     return Drawer(
       backgroundColor: isDark ? kBgDarkSurface : Colors.white,
       child: SafeArea(
@@ -596,9 +602,43 @@ class _HomeScreenState extends State<HomeScreen> {
                   color: textColor,
                 ),
               ),
-              const SizedBox(height: 30),
+              const SizedBox(height: 20),
+              // Profile picture + username
+              Center(
+                child: Column(
+                  children: [
+                    CircleAvatar(
+                      radius: 40,
+                      backgroundColor: accent.withValues(alpha: 0.15),
+                      backgroundImage:
+                          hasImage ? FileImage(File(_profileImagePath!)) : null,
+                      child: hasImage
+                          ? null
+                          : Icon(Icons.person, size: 40, color: accent),
+                    ),
+                    const SizedBox(height: 10),
+                    Text(
+                      _displayName,
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: textColor,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 24),
               _drawerItem(Icons.home, 'Home Page', accent, () {
                 Navigator.pop(context);
+              }),
+              const SizedBox(height: 16),
+              _drawerItem(Icons.wb_sunny_outlined, 'Weather', accent, () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const WeatherScreen()),
+                );
               }),
               const SizedBox(height: 16),
               _drawerItem(Icons.person_outline, 'My Profile', accent, () async {
@@ -609,7 +649,10 @@ class _HomeScreenState extends State<HomeScreen> {
                 );
                 final user = UserStorageService.currentUser;
                 if (user != null && mounted) {
-                  setState(() => _displayName = user.displayName);
+                  setState(() {
+                    _displayName = user.displayName;
+                    _profileImagePath = user.profileImagePath;
+                  });
                 }
               }),
               const SizedBox(height: 16),

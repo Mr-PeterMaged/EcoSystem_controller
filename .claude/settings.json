@@ -9,10 +9,30 @@
       "Bash(python -c \"from upload_code import upload_source_code\")",
       "Bash(pip install *)",
       "Bash(git commit -m ' *)",
-      "Read(//c/Users/peter/Downloads/sketch_may4a/**)"
+      "Read(//c/Users/peter/Downloads/sketch_may4a/**)",
+      "Bash(Get-ChildItem -Recurse \"C:\\\\Users\\\\peter\\\\Downloads\\\\Weather_App-master\\\\lib\" -Include \"*.dart\")",
+      "Bash(Select-Object -ExpandProperty FullName)",
+      "Bash(Sort-Object)",
+      "PowerShell(cd \"C:\\\\Users\\\\peter\\\\Downloads\\\\EcoSystem_controller-main\"; Get-ChildItem -Force | Select-Object Name, @{Name=\"Type\";Expression={if\\($_.PSIsContainer\\){\"DIR\"}else{\"FILE\"}}})",
+      "Read(//c/Users/peter/Downloads/Weather_App-master/lib/model/**)",
+      "Read(//c/Users/peter/Downloads/Weather_App-master/lib/widget/**)",
+      "Read(//c/Users/peter/Downloads/Weather_App-master/lib/constants/**)",
+      "Read(//c/Users/peter/Downloads/Weather_App-master/lib/utils/Binding/**)",
+      "Read(//c/Users/peter/Downloads/Weather_App-master/lib/service/**)",
+      "Read(//c/Users/peter/Downloads/Weather_App-master/lib/pages/home/**)",
+      "Read(//c/Users/peter/Downloads/Weather_App-master/lib/pages/settings/**)",
+      "Read(//c/Users/peter/Downloads/Weather_App-master/lib/controller/**)",
+      "Read(//c/Users/peter/Downloads/Weather_App-master/lib/api/**)",
+      "Read(//c/Users/peter/Downloads/Weather_App-master/lib/services/**)",
+      "Read(//c/Users/peter/Downloads/Weather_App-master/assets/**)",
+      "Bash(New-Item -ItemType Directory -Force \"C:\\\\Users\\\\peter\\\\Downloads\\\\EcoSystem_controller-main\\\\lib\\\\assets\")",
+      "Bash(Out-Null)",
+      "Bash(Copy-Item \"C:\\\\Users\\\\peter\\\\Downloads\\\\Weather_App-master\\\\assets\\\\anims\\\\cloudy.json\" \"C:\\\\Users\\\\peter\\\\Downloads\\\\EcoSystem_controller-main\\\\lib\\\\assets\\\\cloudy.json\")",
+      "Bash(Write-Host \"Done\")"
     ],
     "additionalDirectories": [
-      "c:\\Users\\peter\\Downloads\\sketch_may4a"
+      "c:\\Users\\peter\\Downloads\\sketch_may4a",
+      "C:\\Users\\peter\\Downloads\\Weather_App-master\\assets\\anims"
     ]
   }
 }
