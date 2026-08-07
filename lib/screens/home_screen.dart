@@ -115,11 +115,6 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _toggle(String key) async {
-    if (!_hasDeviceConnection) {
-      _showNoConnectionMessage();
-      return;
-    }
-
     if (!(_status['system'] as bool) && key != 'system') return;
     final newVal = !(_status[key] as bool);
 
@@ -130,18 +125,25 @@ class _HomeScreenState extends State<HomeScreen> {
       command = {key: newVal};
     }
 
+    if (!ConnectionService.isConnected) {
+      setState(() => _status = {..._status, ...command});
+      return;
+    }
+
     final result = await ConnectionService.sendControl(command);
     if (result != null && mounted) {
       setState(() => _status = result);
     } else if (mounted) {
-      setState(() => _isConnected = false);
-      _showNoConnectionMessage();
+      setState(() {
+        _isConnected = false;
+        _status = {..._status, ...command};
+      });
     }
   }
 
   Future<void> _applyPowerSave(Map<String, bool> preset) async {
-    if (!_hasDeviceConnection) {
-      _showNoConnectionMessage();
+    if (!ConnectionService.isConnected) {
+      setState(() => _status = {..._status, ...preset});
       return;
     }
 
@@ -151,8 +153,10 @@ class _HomeScreenState extends State<HomeScreen> {
     if (result != null && mounted) {
       setState(() => _status = result);
     } else if (mounted) {
-      setState(() => _isConnected = false);
-      _showNoConnectionMessage();
+      setState(() {
+        _isConnected = false;
+        _status = {..._status, ...preset};
+      });
     }
   }
 
@@ -335,20 +339,6 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
       ),
     );
-  }
-
-  bool get _hasDeviceConnection => ConnectionService.isConnected;
-
-  void _showNoConnectionMessage() {
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        const SnackBar(
-          content: Text(
-            'No action was taken because the system is not connected to the devices.',
-          ),
-        ),
-      );
   }
 
   Widget _powerSaveButton(
