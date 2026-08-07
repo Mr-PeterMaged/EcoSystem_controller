@@ -1,3 +1,11 @@
 {
-    "debug.enableStatusBarColor": false
+    "debug.enableStatusBarColor": false,
+    "files.watcherExclude": {
+        "**/.build_cache/**": true,
+        "**/build/**": true,
+        "**/.dart_tool/**": true,
+        "**/apk_builds/**": true,
+        "**/android/.gradle/**": true,
+        "**/*/flutter/ephemeral/**": true
+    }
 }
