@@ -10,6 +10,10 @@ const kBgDark = Color(0xFF121212);
 const kBgDarkSurface = Color(0xFF1E1E1E);
 const kAppBarDark = Color(0xFF1A1A1A);
 
+// Must match VITE_FIREBASE_DEVICE_ID in the website and DEVICE_ID in the
+// ESP32 firmware — all three read/write the same Firebase RTDB shadow path.
+const kFirebaseDeviceId = 'esp32-01';
+
 const Map<String, String> kDeviceLabels = {
   'system': 'System',
   'gasSensor': 'Gas Sensor',

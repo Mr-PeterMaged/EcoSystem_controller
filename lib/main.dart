@@ -1,7 +1,11 @@
+import 'dart:async';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
+import 'firebase_options.dart';
 import 'screens/loading_screen.dart';
 import 'services/app_settings_service.dart';
 import 'services/automation_service.dart';
+import 'services/connection_service.dart';
 import 'services/notification_service.dart';
 import 'services/user_storage_service.dart';
 import 'theme_notifier.dart';
@@ -10,6 +14,12 @@ import 'app_constants.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   try {
+    await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+    // Start the device connection as soon as the app loads, regardless of
+    // which screen ends up showing first — a fresh app open should already
+    // be syncing by the time the user reaches Home/Control/Stats.
+    unawaited(ConnectionService.connectWifi(''));
+
     await AppSettingsService.init();
     await UserStorageService.init();
     final settings = AppSettingsService.settings;
